@@ -1,5 +1,4 @@
 from functools import partial
-import threading
 from queue import Queue
 import time
 import uuid
@@ -15,20 +14,21 @@ from hri_msgs.msg import IdsList, IdsMatch
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
-import deepface
 from deepface import DeepFace
 from deepface.commons.functions import find_input_shape
 from tensorflow.keras.preprocessing import image
+import tensorflow as tf
 
 FACE_DB_DIRECTORY = pathlib.Path.home() / ".config/hri_face_identification"
 
 # create the FACE_DB_DIRECTORY if it does not exist yet
 FACE_DB_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
-MODEL = "Facenet"  # ~2.2GB of VRAM, ~50ms inference time
-# MODEL = "DeepFace" # unconvincing results + slow
-# MODEL = "ArcFace"
+# MODEL = "Facenet"  # GPU: ~2.2GB of VRAM, ~50ms inference time; CPU: ~100ms per frame, 12% CPU (i7-1185G7 @ 4.8GHz); 2.8GB RAM
+# MODEL = "DeepFace"  # GPU: ~2.3GB; unconvincing results + slow
+# MODEL = "ArcFace" # GPU: ~2.3GB
 # MODEL = "DeepID"
+MODEL = "Dlib"  # GPU: ~600MB, <10ms inference time
 
 # distance threshold below which 2 faces are considered as belonging to the
 # same person
@@ -40,6 +40,8 @@ elif MODEL == "DeepFace":
     THRESHOLD = 0.23  # for cosine distance
 elif MODEL == "DeepID":
     THRESHOLD = 0.015  # for cosine distance
+elif MODEL == "Dlib":
+    THRESHOLD = 0.07  # for cosine distance
 
 
 # if the distance of a face to a known face is between
@@ -47,6 +49,8 @@ elif MODEL == "DeepID":
 # database as a another exemplar for the same person
 THRESHOLD_ADDITIONAL_FACE = THRESHOLD / 2  # for cosine distance
 
+
+FORCE_CPU = True
 
 DEBUG = True
 
@@ -135,8 +139,14 @@ class FaceIdentification:
         self.load_face_database(FACE_DB_DIRECTORY)
 
         rospy.loginfo("Building %s model..." % MODEL)
-        self.model = DeepFace.build_model(MODEL)
-        print("Model input size: %s" % str(find_input_shape(self.model)))
+
+        if FORCE_CPU:
+            with tf.device("/cpu:0"):
+                self.model = DeepFace.build_model(MODEL)
+        else:
+            self.model = DeepFace.build_model(MODEL)
+
+        rospy.logdebug("Model input size: %s" % str(find_input_shape(self.model)))
 
         rospy.Subscriber("/humans/faces/tracked", IdsList, self.on_faces)
 
@@ -152,12 +162,17 @@ class FaceIdentification:
 
         self.is_shutting_down = True
 
+        # push a empty 'face' in case the thread is blocking on a
+        # incoming_face.get
+        self.incoming_face.put((None, None))
+
         for _, sub in self.faces.items():
             sub.unregister()
 
         self.processing_thread.join(0.5)
 
         rospy.loginfo("Stopped faces identification.")
+
         rospy.sleep(
             0.1
         )  # ensure the last messages published in this method (detector.close) are effectively sent.
@@ -196,6 +211,9 @@ class FaceIdentification:
         while not self.is_shutting_down:
 
             face_id, ros_img = self.incoming_face.get()
+
+            if self.is_shutting_down:
+                return
 
             # rospy.loginfo("Got a face image for face %s!" % face_id)
 
@@ -343,6 +361,25 @@ class FaceIdentification:
 
 if __name__ == "__main__":
     rospy.init_node("hri_face_identification")
+
+    gpus = tf.config.list_physical_devices("GPU")
+
+    if FORCE_CPU:
+        if MODEL == "Dlib":
+            rospy.logwarn(
+                "'FORCE_CPU' currently not possible with Dlib. Ignoring it and letting dlib decide!"
+            )
+        else:
+            rospy.loginfo("Running on the CPU (FORCE_CPU set to true)")
+
+    rospy.loginfo("Found %s GPUs." % len(gpus))
+    if not gpus:
+        rospy.loginfo("Running on the CPU (no GPU available)")
+        FORCE_CPU = True
+    else:
+        # configure TF to only allocate the needed VRAM
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
 
     face_id = FaceIdentification(deterministic_id=True)
 
