@@ -1,19 +1,21 @@
 from functools import partial
-import deepface
+import threading
+from queue import Queue
+import time
+import uuid
+import pickle
+import pathlib
+from threading import Thread
+import numpy as np
 
 import cv2
+
 import rospy
 from hri_msgs.msg import IdsList, IdsMatch
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-import numpy as np
 
-import time
-import uuid
-
-import pickle
-import pathlib
-
+import deepface
 from deepface import DeepFace
 from deepface.commons.functions import find_input_shape
 from tensorflow.keras.preprocessing import image
@@ -23,14 +25,30 @@ FACE_DB_DIRECTORY = pathlib.Path.home() / ".config/hri_face_identification"
 # create the FACE_DB_DIRECTORY if it does not exist yet
 FACE_DB_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
+MODEL = "Facenet"  # ~2.2GB of VRAM, ~50ms inference time
+# MODEL = "DeepFace" # unconvincing results + slow
+# MODEL = "ArcFace"
+# MODEL = "DeepID"
+
 # distance threshold below which 2 faces are considered as belonging to the
 # same person
-THRESHOLD = 0.40  # for cosine distance
+if MODEL == "Facenet":
+    THRESHOLD = 0.40  # for cosine distance
+elif MODEL == "ArcFace":
+    THRESHOLD = 0.68  # for cosine distance
+elif MODEL == "DeepFace":
+    THRESHOLD = 0.23  # for cosine distance
+elif MODEL == "DeepID":
+    THRESHOLD = 0.015  # for cosine distance
+
 
 # if the distance of a face to a known face is between
 # THRESHOLD_ADDITIONAL_FACE and THRESHOLD, that face will be added to the
 # database as a another exemplar for the same person
-THRESHOLD_ADDITIONAL_FACE = 0.20  # for cosine distance
+THRESHOLD_ADDITIONAL_FACE = THRESHOLD / 2  # for cosine distance
+
+
+DEBUG = True
 
 
 def cosine_distance(a, b):
@@ -95,7 +113,7 @@ def preprocess_face(img, target_size=(224, 224), grayscale=False):
 
     img_pixels = image.img_to_array(img)  # what this line doing? must?
     img_pixels = np.expand_dims(img_pixels, axis=0)
-    img_pixels /= 255  # normalize input in [0, 1]
+    # img_pixels /= 255  # normalize input in [0, 1]
 
     return img_pixels
 
@@ -106,15 +124,18 @@ class FaceIdentification:
 
     def __init__(self, deterministic_id=False):
 
+        self.is_shutting_down = False
         self.deterministic_id = deterministic_id
 
         self.faces = {}
 
+        self.incoming_face = Queue(maxsize=1)
+
         self.identified_faces = {}
         self.load_face_database(FACE_DB_DIRECTORY)
 
-        rospy.loginfo("Building Facenet model...")
-        self.model = DeepFace.build_model("Facenet")
+        rospy.loginfo("Building %s model..." % MODEL)
+        self.model = DeepFace.build_model(MODEL)
         print("Model input size: %s" % str(find_input_shape(self.model)))
 
         rospy.Subscriber("/humans/faces/tracked", IdsList, self.on_faces)
@@ -123,6 +144,9 @@ class FaceIdentification:
             "/humans/candidate_matches", IdsMatch, queue_size=1
         )
 
+        self.processing_thread = Thread(target=self.process_face)
+        self.processing_thread.start()
+
     def close(self):
         rospy.loginfo("Stopping face identification...")
 
@@ -130,6 +154,8 @@ class FaceIdentification:
 
         for _, sub in self.faces.items():
             sub.unregister()
+
+        self.processing_thread.join(0.5)
 
         rospy.loginfo("Stopped faces identification.")
         rospy.sleep(
@@ -158,59 +184,82 @@ class FaceIdentification:
         # rospy.loginfo("Currently tracking %s faces" % len(self.faces))
 
     def on_face(self, face_id, img):
-        # rospy.loginfo("Got a face image for face %s!" % face_id)
 
-        start = time.time()
+        # still processing the previous face? drop new one
+        if self.incoming_face.full():
+            return
 
-        img = CvBridge().imgmsg_to_cv2(img, desired_encoding="bgr8")
+        self.incoming_face.put((face_id, img))
 
-        # img = cv2.resize(find_input_shape(self.model))
-        img = preprocess_face(img, find_input_shape(self.model))
+    def process_face(self):
 
-        # image normalization
-        mean, std = img.mean(), img.std()
-        img = (img - mean) / std
+        while not self.is_shutting_down:
 
-        # project face onto pre-trained embedding
-        embedding = self.model.predict(img)[0].tolist()
+            face_id, ros_img = self.incoming_face.get()
 
-        candidates = self.find_candidates(embedding)
+            # rospy.loginfo("Got a face image for face %s!" % face_id)
 
-        if not candidates:
-            person_id = str(uuid.uuid4())[:5]  # for a 5 char long ID
-            # generate unique ID
-            if self.deterministic_id:
-                person_id = "person_%04d" % self.last_id
-                self.last_id = (self.last_id + 1) % 10000
-            else:
+            start = time.time()
+
+            raw_img = CvBridge().imgmsg_to_cv2(ros_img, desired_encoding="bgr8")
+
+            # img = cv2.resize(find_input_shape(self.model))
+            img = preprocess_face(raw_img, find_input_shape(self.model))
+
+            # image normalization; code from DeepFace's functions.py
+            if MODEL == "Facenet":
+                mean, std = img.mean(), img.std()
+                img = (img - mean) / std
+
+            elif MODEL == "VGGFace":
+                # mean subtraction based on VGGFace1 training data
+                img[..., 0] -= 93.5940
+                img[..., 1] -= 104.7624
+                img[..., 2] -= 129.1863
+
+            elif MODEL == "VGGFace2":
+                # mean subtraction based on VGGFace2 training data
+                img[..., 0] -= 91.4953
+                img[..., 1] -= 103.8827
+                img[..., 2] -= 131.0912
+
+            elif MODEL == "ArcFace":
+                # Reference study: The faces are cropped and resized to 112×112,
+                # and each pixel (ranged between [0, 255]) in RGB images is normalised
+                # by subtracting 127.5 then divided by 128.
+                img -= 127.5
+                img /= 128
+
+            elif MODEL == "DeepID":
+                img /= 255
+
+            # project face onto pre-trained embedding
+            embedding = self.model.predict(img)[0].tolist()
+
+            candidates = self.find_candidates(embedding)
+
+            if not candidates:
                 person_id = str(uuid.uuid4())[:5]  # for a 5 char long ID
+                # generate unique ID
+                if self.deterministic_id:
+                    person_id = "person_%04d" % self.last_id
+                    self.last_id = (self.last_id + 1) % 10000
+                else:
+                    person_id = str(uuid.uuid4())[:5]  # for a 5 char long ID
 
-            rospy.loginfo(
-                "Can not recognise this face. Storing it as new person <%s>."
-                % person_id
-            )
-
-            self.store_face(person_id, embedding)
-        else:
-            if len(candidates) == 1:
-                person_id, distance = candidates[0]
                 rospy.loginfo(
-                    "Found a match with ID %s (distance: %.2f)!" % (person_id, distance)
+                    "Can not recognise this face. Storing it as new person <%s>."
+                    % person_id
                 )
 
-                ids_match = IdsMatch()
-                ids_match.face_id = face_id
-                ids_match.person_id = person_id
-                ids_match.confidence = confidence_from_distance(distance)
-
-                self.matches_pub.publish(ids_match)
-
-                if distance > THRESHOLD_ADDITIONAL_FACE:
-                    self.store_face(person_id, embedding)
+                self.store_face(person_id, embedding)
             else:
-                rospy.loginfo("Found more than one possible match:")
-                for person_id, distance in candidates:
-                    rospy.loginfo("  - %s (d=%.2f)" % (person_id, distance))
+                if len(candidates) == 1:
+                    person_id, distance = candidates[0]
+                    rospy.loginfo(
+                        "Found a match with ID %s (distance: %.2f)!"
+                        % (person_id, distance)
+                    )
 
                     ids_match = IdsMatch()
                     ids_match.face_id = face_id
@@ -219,7 +268,30 @@ class FaceIdentification:
 
                     self.matches_pub.publish(ids_match)
 
-        rospy.loginfo("Recognition took %.1fms" % ((time.time() - start) * 1000))
+                    if distance > THRESHOLD_ADDITIONAL_FACE:
+                        self.store_face(person_id, embedding)
+                else:
+                    rospy.loginfo("Found more than one possible match:")
+                    for person_id, distance in candidates:
+                        rospy.loginfo("  - %s (d=%.2f)" % (person_id, distance))
+
+                        ids_match = IdsMatch()
+                        ids_match.face_id = face_id
+                        ids_match.person_id = person_id
+                        ids_match.confidence = confidence_from_distance(distance)
+
+                        self.matches_pub.publish(ids_match)
+
+            rospy.loginfo("Recognition took %.1fms" % ((time.time() - start) * 1000))
+
+            if DEBUG:
+                cv2.imshow("Face recognition with %s" % MODEL, raw_img)
+                cv2.waitKey(1)
+
+            # have we received a new face while processing the current one? if so, discard it,
+            # as it is probably outdated by now. We will wait for the new one in the next loop
+            if self.incoming_face.full():
+                self.incoming_face.get()
 
     def find_candidates(self, embedding):
 
