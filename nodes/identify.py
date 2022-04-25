@@ -3,10 +3,13 @@ import deepface
 
 import cv2
 import rospy
-from hri_msgs.msg import IdsList
+from hri_msgs.msg import IdsList, IdsMatch
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import numpy as np
+
+import time
+import uuid
 
 import pickle
 import pathlib
@@ -20,11 +23,24 @@ FACE_DB_DIRECTORY = pathlib.Path.home() / ".config/hri_face_identification"
 # create the FACE_DB_DIRECTORY if it does not exist yet
 FACE_DB_DIRECTORY.mkdir(parents=True, exist_ok=True)
 
+# distance threshold below which 2 faces are considered as belonging to the
+# same person
 THRESHOLD = 0.40  # for cosine distance
+
+# if the distance of a face to a known face is between
+# THRESHOLD_ADDITIONAL_FACE and THRESHOLD, that face will be added to the
+# database as a another exemplar for the same person
+THRESHOLD_ADDITIONAL_FACE = 0.20  # for cosine distance
 
 
 def cosine_distance(a, b):
     return 1 - (np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
+
+def confidence_from_distance(distance):
+
+    # for now, a linear mapping to the distance. Might explore other function in the future
+    return 1.0 - (distance / THRESHOLD)
 
 
 def preprocess_face(img, target_size=(224, 224), grayscale=False):
@@ -85,7 +101,12 @@ def preprocess_face(img, target_size=(224, 224), grayscale=False):
 
 
 class FaceIdentification:
-    def __init__(self):
+
+    last_id = 1
+
+    def __init__(self, deterministic_id=False):
+
+        self.deterministic_id = deterministic_id
 
         self.faces = {}
 
@@ -98,6 +119,23 @@ class FaceIdentification:
 
         rospy.Subscriber("/humans/faces/tracked", IdsList, self.on_faces)
 
+        self.matches_pub = rospy.Publisher(
+            "/humans/candidate_matches", IdsMatch, queue_size=1
+        )
+
+    def close(self):
+        rospy.loginfo("Stopping face identification...")
+
+        self.is_shutting_down = True
+
+        for _, sub in self.faces.items():
+            sub.unregister()
+
+        rospy.loginfo("Stopped faces identification.")
+        rospy.sleep(
+            0.1
+        )  # ensure the last messages published in this method (detector.close) are effectively sent.
+
     def on_faces(self, data):
 
         known_faces = list(self.faces.keys())
@@ -109,16 +147,20 @@ class FaceIdentification:
                     "/humans/faces/%s/aligned" % face_id,
                     Image,
                     partial(FaceIdentification.on_face, self, face_id),
+                    queue_size=1,
                 )
 
         for id in known_faces:
             if id not in data.ids:
+                self.faces[id].unregister()
                 del self.faces[id]
 
         # rospy.loginfo("Currently tracking %s faces" % len(self.faces))
 
     def on_face(self, face_id, img):
         # rospy.loginfo("Got a face image for face %s!" % face_id)
+
+        start = time.time()
 
         img = CvBridge().imgmsg_to_cv2(img, desired_encoding="bgr8")
 
@@ -135,35 +177,67 @@ class FaceIdentification:
         candidates = self.find_candidates(embedding)
 
         if not candidates:
-            rospy.loginfo("Can not recognise this face. Storing it as a new person.")
-            self.store_face(face_id, embedding)
+            person_id = str(uuid.uuid4())[:5]  # for a 5 char long ID
+            # generate unique ID
+            if self.deterministic_id:
+                person_id = "person_%04d" % self.last_id
+                self.last_id = (self.last_id + 1) % 10000
+            else:
+                person_id = str(uuid.uuid4())[:5]  # for a 5 char long ID
+
+            rospy.loginfo(
+                "Can not recognise this face. Storing it as new person <%s>."
+                % person_id
+            )
+
+            self.store_face(person_id, embedding)
         else:
             if len(candidates) == 1:
-                face_id, distance = candidates[0]
+                person_id, distance = candidates[0]
                 rospy.loginfo(
-                    "Found a match with ID %s (distance: %.2f)!" % (face_id, distance)
+                    "Found a match with ID %s (distance: %.2f)!" % (person_id, distance)
                 )
+
+                ids_match = IdsMatch()
+                ids_match.face_id = face_id
+                ids_match.person_id = person_id
+                ids_match.confidence = confidence_from_distance(distance)
+
+                self.matches_pub.publish(ids_match)
+
+                if distance > THRESHOLD_ADDITIONAL_FACE:
+                    self.store_face(person_id, embedding)
             else:
                 rospy.loginfo("Found more than one possible match:")
-                for face_id, distance in candidates:
-                    rospy.loginfo("  - %s (d=%.2f)" % (face_id, distance))
+                for person_id, distance in candidates:
+                    rospy.loginfo("  - %s (d=%.2f)" % (person_id, distance))
+
+                    ids_match = IdsMatch()
+                    ids_match.face_id = face_id
+                    ids_match.person_id = person_id
+                    ids_match.confidence = confidence_from_distance(distance)
+
+                    self.matches_pub.publish(ids_match)
+
+        rospy.loginfo("Recognition took %.1fms" % ((time.time() - start) * 1000))
 
     def find_candidates(self, embedding):
 
         distances = {}
 
-        for face_id, target_embedding in self.identified_faces.items():
-            dst = cosine_distance(embedding, target_embedding)
-            if dst < THRESHOLD:
-                # keep the smallest distance for that face id
-                if face_id not in distances or dst < distances[face_id]:
-                    distances[face_id] = dst
+        for person_id, target_embeddings in self.identified_faces.items():
+            for target_embedding in target_embeddings:
+                dst = cosine_distance(embedding, target_embedding)
+                if dst < THRESHOLD:
+                    # keep the smallest distance for that face id
+                    if person_id not in distances or dst < distances[person_id]:
+                        distances[person_id] = dst
 
         # returns candidates, sorted by increasing cosine distance
         return sorted(distances.items(), key=lambda x: x[1])
 
-    def store_face(self, face_id, embedding):
-        self.identified_faces[face_id] = embedding
+    def store_face(self, person_id, embedding):
+        self.identified_faces.setdefault(person_id, []).append(embedding)
 
     def load_face_database(self, path: pathlib.Path):
 
@@ -174,6 +248,8 @@ class FaceIdentification:
 
         with open(db_path, "rb") as f:
             self.identified_faces = pickle.load(f)
+
+        self.last_id = len(self.identified_faces) + 1
 
         rospy.loginfo(
             "Loaded %s face ids from stored in %s."
@@ -189,18 +265,20 @@ class FaceIdentification:
 
         rospy.loginfo(
             "%s face ids stored in %s. Delete this file to erase all known identities."
-            % (len(self.identified_faces, db_path))
+            % (len(self.identified_faces), db_path)
         )
 
 
 if __name__ == "__main__":
     rospy.init_node("hri_face_identification")
 
-    face_id = FaceIdentification()
+    face_id = FaceIdentification(deterministic_id=True)
 
     rospy.loginfo(
         "hri_face_identification ready. Waiting for face detections on /humans/faces/tracked"
     )
+
+    rospy.on_shutdown(face_id.close)
     rospy.spin()
 
     face_id.save_face_database(FACE_DB_DIRECTORY)
