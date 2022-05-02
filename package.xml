@@ -19,7 +19,7 @@
   <build_export_depend>hri_msgs</build_export_depend>
   <build_export_depend>image_transport</build_export_depend>
   <build_export_depend>libdlib-dev</build_export_depend>
-  <build_export_depend>libhri</build_export_depend>
+  <build_export_depend>hri</build_export_depend>
   <build_export_depend>roscpp</build_export_depend>
   <exec_depend>hri_msgs</exec_depend>
   <exec_depend>image_transport</exec_depend>
