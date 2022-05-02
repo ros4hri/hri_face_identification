@@ -36,7 +36,7 @@ FaceRecognition::FaceRecognition(float _match_threshold)
 
     // And finally we load the DNN responsible for face recognition.
     dlib::deserialize(pkg_path_ +
-                      "/dlib_face_recognition_resnet_model_v1.dat") >>
+                      "/share/dlib_face_recognition_resnet_model_v1.dat") >>
         net;
 }
 
@@ -70,7 +70,7 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
         ROS_INFO_STREAM("New person detected; will be identified under id <"
                         << person_id << ">");
 
-        ROS_INFO_STREAM("Computing robust face descriptor...");
+        ROS_INFO_STREAM("Computing face descriptor...");
         person_descriptors[person_id].push_back(
             // computeRobustFaceDescriptor(face));
             computeFaceDescriptor(face));

@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
 
     float match_threshold;
     ros::param::param<float>("/humans/face_identification/match_threshold",
-                             match_threshold, 0.6);
+                             match_threshold, DEFAULT_MATCH_THRESHOLD);
 
     string face_db_path;
     ros::param::param<string>("/humans/face_identification/face_database_path",

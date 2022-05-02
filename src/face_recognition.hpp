@@ -9,6 +9,8 @@ using Features = dlib::matrix<float, 0, 1>;
 
 using Id = std::string;
 
+#define DEFAULT_MATCH_THRESHOLD 0.6
+
 //////////////////////////////////////////////////////////////////////////////////
 // construct the RESnet deep network with dlib
 // copy-pasted from dlib public domain example dnn_face_recognition_ex.cpp
@@ -59,7 +61,7 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
 
 class FaceRecognition {
    public:
-    FaceRecognition(float match_threshold);
+    FaceRecognition(float match_threshold = DEFAULT_MATCH_THRESHOLD);
 
     std::map<Id, float> processFace(const cv::Mat& face);
 

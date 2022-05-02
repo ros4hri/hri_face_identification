@@ -75,18 +75,38 @@ install(TARGETS ${PROJECT_NAME}_node
 
 install(FILES
    share/dlib_face_recognition_resnet_model_v1.dat
+   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/share
+)
+
+install(DIRECTORY test-data
    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-#############
-## Testing ##
-#############
+###########################################################
+# Tests
 
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_hri_face_identification_dlib.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
+if(CATKIN_ENABLE_TESTING)
 
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)
+find_package(catkin REQUIRED COMPONENTS
+  hri_msgs
+  image_transport
+  hri
+  roscpp
+  rosbag
+)
+
+include_directories(
+    src
+)
+
+find_package(rostest REQUIRED)
+
+add_rostest_gtest(test_hri_face_id test/test_face_id.test test/test_face_id.cpp src/face_recognition.cpp)
+target_include_directories(test_hri_face_id PRIVATE ${rostest_INCLUDE_DIRS})
+target_link_libraries(test_hri_face_id  ${catkin_LIBRARIES} dlib::dlib)
+
+
+endif() # CATKIN_ENABLE_TESTING
+
+
+
