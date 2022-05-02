@@ -15,6 +15,7 @@
   <depend>image_transport</depend>
   <depend>libdlib-dev</depend>
   <depend>libblas-dev</depend>
+  <depend>liblapack-dev</depend>
   <depend>hri</depend>
   <depend>roscpp</depend>
 
