@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.2.0 (2022-05-02)
+------------------
 * add LICENSE (BSD) 
 * be explicit about BLAS/LAPACK, due an issue/bug in the way old versions of dlib includes it
 * add initial unit test
