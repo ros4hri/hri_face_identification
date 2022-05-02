@@ -1,6 +1,7 @@
 #include "face_recognition.hpp"
 
 #include <dlib/opencv.h>
+#include <ros/package.h>
 #include <ros/ros.h>
 #include <time.h>
 
@@ -30,8 +31,13 @@ Id generate_id(const int len = 5) {
 FaceRecognition::FaceRecognition(float _match_threshold)
     : match_threshold(_match_threshold) {
     ROS_INFO("Loading dlib's ANN face recognition resnet weights...");
+
+    auto pkg_path_ = ros::package::getPath("hri_face_identification");
+
     // And finally we load the DNN responsible for face recognition.
-    dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> net;
+    dlib::deserialize(pkg_path_ +
+                      "/dlib_face_recognition_resnet_model_v1.dat") >>
+        net;
 }
 
 std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
