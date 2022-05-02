@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2022-05-02)
+------------------
 
 Initial release in C++, based on dlib face recognition pipeline.
 http://dlib.net/dnn_face_recognition_ex.cpp.html
