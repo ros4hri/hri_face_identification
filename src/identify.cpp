@@ -2,6 +2,7 @@
 #include <hri/hri.h>
 #include <hri_msgs/IdsMatch.h>
 #include <ros/ros.h>
+#include <std_msgs/Empty.h>
 
 #include <opencv2/highgui.hpp>
 
@@ -15,6 +16,8 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "hri_face_identification");
 
     ros::NodeHandle nh;
+    auto semaphore_pub = nh.advertise<std_msgs::Empty>(
+        "/hri_face_identification/ready", 1, true);
 
     float match_threshold;
     ros::param::param<float>("/humans/face_identification/match_threshold",
@@ -35,7 +38,10 @@ int main(int argc, char** argv) {
     // hri_listener.onFace(&onFace);
 
     auto candidate_matches_pub =
-        nh.advertise<hri_msgs::IdsMatch>("/humans/candidate_matches", 1, true);
+        nh.advertise<hri_msgs::IdsMatch>("/humans/candidate_matches", 1, false);
+
+    // ready to go!
+    semaphore_pub.publish(std_msgs::Empty());
 
     while (ros::ok()) {
         auto faces = hri_listener.getFaces();
