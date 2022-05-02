@@ -27,8 +27,8 @@ Id generate_id(const int len = 5) {
     return tmp_s;
 }
 
-FaceRecognition::FaceRecognition(float match_threshold)
-    : match_threshold(match_threshold) {
+FaceRecognition::FaceRecognition(float _match_threshold)
+    : match_threshold(_match_threshold) {
     ROS_INFO("Loading dlib's ANN face recognition resnet weights...");
     // And finally we load the DNN responsible for face recognition.
     dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> net;
