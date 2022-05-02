@@ -2,8 +2,10 @@
 
 #include <dlib/opencv.h>
 #include <ros/ros.h>
+#include <time.h>
 
-#include <cstdlib>  // for rand()
+#include <cstdlib>  // for srand()
+//#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
 using namespace std;
@@ -12,6 +14,8 @@ Id generate_id(const int len = 5) {
     static const char alphanum[] = "0123456789abcdef";
     string tmp_s;
     tmp_s.reserve(len);
+
+    ::srand(time(NULL));
 
     for (int i = 0; i < len; ++i) {
         tmp_s += alphanum[::rand() % (sizeof(alphanum) - 1)];
