@@ -2,6 +2,16 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add LICENSE (BSD) 
+* be explicit about BLAS/LAPACK, due an issue/bug in the way old versions of dlib includes it
+* add initial unit test
+* install and properly access the dlib RESnet pre-trained weights
+* publish an empty msg on /hri_face_identification when ready to proceed
+* [doc] add README with API documentation
+* Contributors: Séverin Lemaignan
+
 0.1.1 (2022-05-02)
 ------------------
 
