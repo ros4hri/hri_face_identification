@@ -5,10 +5,6 @@
 #include <opencv2/core.hpp>
 #include <vector>
 
-// if the distance between 2 facial descriptors is less than this threshold, we
-// consider that the 2 faces are indeed the same person.
-const float EUCLIDIAN_THRESHOLD = 0.6;
-
 using Features = dlib::matrix<float, 0, 1>;
 
 using Id = std::string;
@@ -63,7 +59,7 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
 
 class FaceRecognition {
    public:
-    FaceRecognition();
+    FaceRecognition(float match_threshold);
 
     void processFace(const cv::Mat& face);
 
@@ -86,7 +82,7 @@ class FaceRecognition {
         const dlib::matrix<dlib::rgb_pixel>& img);
 
     /** returns a map <person_id, score> for all the person whose face
-     * descriptor(s) match (ie, distance < EUCLIDIAN_THRESHOLD) the provided
+     * descriptor(s) match (ie, distance < match_threshold) the provided
      * descriptor.
      *
      * The smaller the score, the better the match. As such, the best match
@@ -105,11 +101,13 @@ class FaceRecognition {
 
    private:
     float computeConfidence(float distance) {
-        return 1 - distance / EUCLIDIAN_THRESHOLD;
+        return 1 - distance / match_threshold;
     }
 
     anet_type net;
     std::map<Id, std::vector<Features>> person_descriptors;
     std::map<Id, Id> face_person_map;
+
+    float match_threshold;
 };
 

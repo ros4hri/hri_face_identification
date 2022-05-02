@@ -20,7 +20,8 @@ Id generate_id(const int len = 5) {
     return tmp_s;
 }
 
-FaceRecognition::FaceRecognition() {
+FaceRecognition::FaceRecognition(float match_threshold)
+    : match_threshold(match_threshold) {
     ROS_INFO("Loading dlib's ANN face recognition resnet weights...");
     // And finally we load the DNN responsible for face recognition.
     dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> net;
@@ -114,7 +115,7 @@ map<Id, float> FaceRecognition::findCandidates(Features descriptor) {
 
             auto score = computeConfidence(distance);
 
-            if (distance < EUCLIDIAN_THRESHOLD) {
+            if (distance < match_threshold) {
                 if (scores.count(person_id) == 0 or scores[person_id] < score) {
                     // first match or new best match
                     scores[person_id] = score;

@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     ros::param::param<float>("/humans/face_identification/match_threshold",
                              match_threshold, 0.6);
 
-    FaceRecognition fr;
+    FaceRecognition fr(match_threshold);
 
     ros::Rate loop_rate(10);
 
