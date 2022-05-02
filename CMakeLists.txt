@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(dlib REQUIRED)
+find_package(BLAS REQUIRED)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -51,6 +52,7 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME identify PREFI
 target_link_libraries(${PROJECT_NAME}_node
    ${catkin_LIBRARIES}
    dlib::dlib
+   ${BLAS_LIBRARIES}
 )
 
 #############
@@ -103,7 +105,11 @@ find_package(rostest REQUIRED)
 
 add_rostest_gtest(test_hri_face_id test/test_face_id.test test/test_face_id.cpp src/face_recognition.cpp)
 target_include_directories(test_hri_face_id PRIVATE ${rostest_INCLUDE_DIRS})
-target_link_libraries(test_hri_face_id  ${catkin_LIBRARIES} dlib::dlib)
+target_link_libraries(test_hri_face_id
+   ${catkin_LIBRARIES}
+   dlib::dlib
+   ${BLAS_LIBRARIES}
+)
 
 
 endif() # CATKIN_ENABLE_TESTING

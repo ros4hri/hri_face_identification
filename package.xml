@@ -11,21 +11,12 @@
   <author email="severin.lemaignan@pal-robotics.com">Séverin Lemaignan</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>hri_msgs</build_depend>
-  <build_depend>image_transport</build_depend>
-  <build_depend>libdlib-dev</build_depend>
-  <build_depend>hri</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_export_depend>hri_msgs</build_export_depend>
-  <build_export_depend>image_transport</build_export_depend>
-  <build_export_depend>libdlib-dev</build_export_depend>
-  <build_export_depend>hri</build_export_depend>
-  <build_export_depend>roscpp</build_export_depend>
-  <exec_depend>hri_msgs</exec_depend>
-  <exec_depend>image_transport</exec_depend>
-  <exec_depend>libdlib-dev</exec_depend>
-  <exec_depend>hri</exec_depend>
-  <exec_depend>roscpp</exec_depend>
+  <depend>hri_msgs</depend>
+  <depend>image_transport</depend>
+  <depend>libdlib-dev</depend>
+  <depend>libblas-dev</depend>
+  <depend>hri</depend>
+  <depend>roscpp</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->
