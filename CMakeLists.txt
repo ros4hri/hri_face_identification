@@ -46,7 +46,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME}_node src/identify.cpp)
+add_executable(${PROJECT_NAME}_node src/identify.cpp src/face_recognition.cpp)
 set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME identify PREFIX "")
 
 target_link_libraries(${PROJECT_NAME}_node
