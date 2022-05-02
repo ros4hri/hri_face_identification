@@ -8,6 +8,9 @@
 //#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 using namespace std;
 
 Id generate_id(const int len = 5) {
@@ -129,5 +132,49 @@ map<Id, float> FaceRecognition::findCandidates(Features descriptor) {
     }
 
     return scores;
+}
+
+// custon JSON serializers for dlib's vectors
+namespace dlib {
+void to_json(json& j, const Features& f) {
+    std::vector<float> features;
+
+    for (unsigned int r = 0; r < f.nr(); r += 1) {
+        features.push_back(f(r, 0));
+    }
+
+    j = json(features);
+}
+
+void from_json(const json& j, Features& f) {
+    std::vector<float> features;
+    j.get_to(features);
+
+    f = dlib::mat(features);
+}
+}  // namespace dlib
+
+void FaceRecognition::storeFaceDB(string path) const {
+    json j(person_descriptors);
+
+    std::ofstream o(path);
+    o << std::setw(4) << j << std::endl;
+
+    cout << "Face database correctly saved to " << path << endl;
+}
+
+void FaceRecognition::loadFaceDB(string path) {
+    std::ifstream i(path);
+    if (i.good()) {
+        json j;
+        i >> j;
+
+        person_descriptors = j.get<map<Id, std::vector<Features>>>();
+
+        ROS_INFO_STREAM("Face database correctly loaded from " << path);
+    } else {
+        ROS_WARN_STREAM("Unable to load face database from "
+                        << path << ". Starting with no known faces.");
+    }
 }
 

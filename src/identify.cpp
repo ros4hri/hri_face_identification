@@ -20,7 +20,13 @@ int main(int argc, char** argv) {
     ros::param::param<float>("/humans/face_identification/match_threshold",
                              match_threshold, 0.6);
 
+    string face_db_path;
+    ros::param::param<string>("/humans/face_identification/face_database_path",
+                              face_db_path, "face_db.json");
+
     FaceRecognition fr(match_threshold);
+
+    fr.loadFaceDB(face_db_path);
 
     ros::Rate loop_rate(10);
 
@@ -48,41 +54,9 @@ int main(int argc, char** argv) {
         ros::spinOnce();
     }
 
+    fr.storeFaceDB(face_db_path);
+    cout << "Bye bye!" << endl;
+
     return 0;
-
-    //    cout << "calculate face descriptors..." << endl;
-    //    // This call asks the DNN to convert each face image in faces into
-    //    a 128D
-    //    // vector. In this 128D vector space, images from the same person
-    //    will be
-    //    // close to each other but vectors from different people will be
-    //    far apart.
-    //    // So we can use these vectors to identify if a pair of images are
-    //    from the
-    //    // same person or from different people.
-    //    vector<dlib::matrix<float, 0, 1>> face_descriptors = net(faces);
-
-    //    // It should also be noted that face recognition accuracy can be
-    //    improved if
-    //    // jittering is used when creating face descriptors.  In
-    //    particular, to
-    //    // get 99.38% on the LFW benchmark you need to use the
-    //    jitter_image()
-    //    // routine to compute the descriptors, like so:
-    //    dlib::matrix<float, 0, 1> face_descriptor =
-    //        mean(mat(net(jitter_image(faces[0]))));
-    //    cout << "jittered face descriptor for one face: " <<
-    //    trans(face_descriptor)
-    //         << endl;
-    //    // If you use the model without jittering, as we did when
-    //    clustering the
-    //    // bald guys, it gets an accuracy of 99.13% on the LFW benchmark.
-    //    So
-    //    // jittering makes the whole procedure a little more accurate but
-    //    makes face
-    //    // descriptor calculation slower.
 }
-
-// ----------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------
 

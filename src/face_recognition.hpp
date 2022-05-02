@@ -99,6 +99,9 @@ class FaceRecognition {
      */
     std::map<Id, float> findCandidates(Features descriptor);
 
+    void storeFaceDB(std::string path) const;
+    void loadFaceDB(std::string path);
+
    private:
     float computeConfidence(float distance) {
         return 1 - distance / match_threshold;
