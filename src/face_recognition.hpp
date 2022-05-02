@@ -61,8 +61,11 @@ class FaceRecognition {
    public:
     FaceRecognition(float match_threshold);
 
-    void processFace(const cv::Mat& face);
+    std::map<Id, float> processFace(const cv::Mat& face);
 
+    /** compute a face descriptor by projecting a face on the dlib's trained
+     * facial recognition embedding.
+     */
     Features computeFaceDescriptor(const dlib::matrix<dlib::rgb_pixel>& face);
 
     /** compute a more robust face descriptor by first generating jittered

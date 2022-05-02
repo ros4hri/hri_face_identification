@@ -34,7 +34,7 @@ FaceRecognition::FaceRecognition(float match_threshold)
     dlib::deserialize("dlib_face_recognition_resnet_model_v1.dat") >> net;
 }
 
-void FaceRecognition::processFace(const cv::Mat& cv_face) {
+std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
     // wraps OpenCV image into a dlib image (no data copy)
     // ATTENTION: face->aligned() should not be modified while
     // wrapped: we first clone the image to ensure this does not
@@ -43,6 +43,8 @@ void FaceRecognition::processFace(const cv::Mat& cv_face) {
     cv::Mat resized_face;
     cv::resize(cv_face, resized_face, {IMG_SIZE, IMG_SIZE}, 0, 0,
                cv::INTER_LINEAR);
+    // cv::imshow("input face", resized_face);
+    // cv::waitKey(0);
 
     dlib::matrix<dlib::rgb_pixel> face;
     dlib::assign_image(
@@ -62,19 +64,32 @@ void FaceRecognition::processFace(const cv::Mat& cv_face) {
         ROS_INFO_STREAM("New person detected; will be identified under id <"
                         << person_id << ">");
 
-        ROS_INFO_STREAM("Computing face descriptor...");
+        ROS_INFO_STREAM("Computing robust face descriptor...");
         person_descriptors[person_id].push_back(
-            computeRobustFaceDescriptor(face));
+            // computeRobustFaceDescriptor(face));
+            computeFaceDescriptor(face));
         ROS_INFO_STREAM("done!");
+
+        return {{person_id, 1.0}};
     } else {
         if (candidates.size() == 1) {
             auto& kv = *candidates.begin();
             // we've got a match!
-            ROS_INFO_STREAM("Found a match with person "
-                            << kv.first << " (confidence: " << kv.second);
+            ROS_DEBUG_STREAM("Found a match with person "
+                             << kv.first << " (confidence: " << kv.second);
 
-            // TODO: compute & add new face descriptor for that person if too
-            // far from the original one
+            // compute & add new face descriptor for that person if too
+            // far from the original one, but not too bad either (to avoid
+            // adding too many false positive)
+            if (kv.second < 0.6 && kv.second > 0.4) {
+                ROS_INFO_STREAM("Current score: "
+                                << kv.second
+                                << ". Adding an additional face descriptor for "
+                                << kv.first);
+                person_descriptors[kv.first].push_back(
+                    computeFaceDescriptor(face));
+            }
+
         } else {
             ROS_INFO("Found more than one possible match:");
 
@@ -83,11 +98,20 @@ void FaceRecognition::processFace(const cv::Mat& cv_face) {
                                        << ")");
             }
         }
+
+        return candidates;
     }
 }
 
 Features FaceRecognition::computeFaceDescriptor(
     const dlib::matrix<dlib::rgb_pixel>& face) {
+    //////////////////////////////////////////
+    // dlib::matrix<dlib::rgb_pixel> face_tmp;
+    // dlib::assign_image(face_tmp, face);
+    // cv::imshow("face", dlib::toMat(face_tmp));
+    // cv::waitKey(0);
+    /////////////////////////////////////////
+
     return net(face);
 }
 
@@ -120,9 +144,9 @@ map<Id, float> FaceRecognition::findCandidates(Features descriptor) {
         for (const auto& known_descriptor : kv.second) {
             auto distance = length(descriptor - known_descriptor);
 
-            auto score = computeConfidence(distance);
-
             if (distance < match_threshold) {
+                auto score = computeConfidence(distance);
+
                 if (scores.count(person_id) == 0 or scores[person_id] < score) {
                     // first match or new best match
                     scores[person_id] = score;

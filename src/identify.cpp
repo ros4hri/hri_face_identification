@@ -45,8 +45,17 @@ int main(int argc, char** argv) {
             if (face) {
                 if (face->aligned().empty()) continue;
 
-                cout << "Got face " << face_id << endl;
-                fr.processFace(face->aligned());
+                ROS_INFO_STREAM("Got face " << face_id);
+                auto results = fr.processFace(face->aligned());
+
+                for (const auto& res : results) {
+                    hri_msgs::IdsMatch match;
+                    match.person_id = res.first;
+                    match.confidence = res.second;
+                    match.face_id = face_id;
+
+                    candidate_matches_pub.publish(match);
+                }
             }
         }
 
