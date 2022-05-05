@@ -91,7 +91,33 @@ class FaceRecognition {
    public:
     FaceRecognition(float match_threshold = DEFAULT_MATCH_THRESHOLD);
 
-    std::map<Id, float> processFace(const cv::Mat& face);
+    /** tries to match a given face to the known faces.
+     *
+     * Returns a map {person_id, confidence} with all possible matches (ie,
+     * face who are below the match threshold).
+     *
+     * Note that the match threshold is the maximum *distance* in the face
+     * embedding space, while the returned *confidence* is a value between 1.0
+     * (fully confident about the identification) and 0.0 (not confident at
+     * all).
+     *
+     * If `create_person_if_needed` is true (default: false), a new person ID is
+     * generated for the face, if the face does not match any known one.
+     */
+    std::map<Id, float> processFace(const cv::Mat& face,
+                                    bool create_person_if_needed = false);
+
+    /** returns the best match between the provided face and the know faces.
+     *
+     * Effectively runs `processFace` and returns the candidate with the highest
+     * confidence.
+     *
+     *
+     * If `create_person_if_needed` is false (default),
+     * returns an empty ID if not satisfactory match found.
+     * Else, a new person ID will be generated and returned.
+     */
+    Id bestMatch(const cv::Mat& face, bool create_person_if_needed = false);
 
     /** compute a face descriptor by projecting a face on the dlib's trained
      * facial recognition embedding.
@@ -118,17 +144,18 @@ class FaceRecognition {
      * descriptor(s) match (ie, distance < match_threshold) the provided
      * descriptor.
      *
-     * The smaller the score, the better the match. As such, the best match
+     * The higher the score, the better the match. As such, the best match
      * can be found with:
      *
      * ```cpp
      * auto scores = findCandidates(descriptor);
-     * auto id = min_element(scores.begin(), scores.end(),
+     * auto id = max_element(scores.begin(), scores.end(),
      *                      [](decltype(scores)::value_type& l,
      *                         decltype(scores)::value_type& r)
      *                         -> bool { return l.second < r.second;}
      *                      )->first;
      * ```
+     *
      */
     std::map<Id, float> findCandidates(Features descriptor);
 

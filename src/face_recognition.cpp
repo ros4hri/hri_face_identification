@@ -68,7 +68,8 @@ FaceRecognition::FaceRecognition(float _match_threshold)
         net;
 }
 
-std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
+std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face,
+                                                 bool create_person_if_needed) {
     // wraps OpenCV image into a dlib image (no data copy)
     // ATTENTION: face->aligned() should not be modified while
     // wrapped: we first clone the image to ensure this does not
@@ -93,18 +94,21 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
     auto candidates = findCandidates(desc);
 
     if (candidates.empty()) {
-        Id person_id = generate_id();
+        if (create_person_if_needed) {
+            Id person_id = generate_id();
 
-        ROS_INFO_STREAM("New person detected; will be identified under id <"
-                        << person_id << ">");
+            ROS_INFO_STREAM("New person detected; will be identified under id <"
+                            << person_id << ">");
 
-        ROS_INFO_STREAM("Computing face descriptor...");
-        person_descriptors[person_id].push_back(
-            // computeRobustFaceDescriptor(face));
-            computeFaceDescriptor(face));
-        ROS_INFO_STREAM("done!");
+            ROS_INFO_STREAM("Computing face descriptor...");
+            person_descriptors[person_id].push_back(
+                // computeRobustFaceDescriptor(face));
+                computeFaceDescriptor(face));
+            ROS_INFO_STREAM("done!");
 
-        return {{person_id, 1.0}};
+            return {{person_id, 1.0}};
+        } else
+            return {};
     } else {
         if (candidates.size() == 1) {
             auto& kv = *candidates.begin();
@@ -135,6 +139,24 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face) {
 
         return candidates;
     }
+}
+
+Id FaceRecognition::bestMatch(const cv::Mat& face,
+                              bool create_person_if_needed) {
+    auto candidates = processFace(face, create_person_if_needed);
+
+    if (candidates.empty()) {
+        return Id();
+    }
+
+    auto id = max_element(candidates.begin(), candidates.end(),
+                          [](decltype(candidates)::value_type& l,
+                             decltype(candidates)::value_type& r) -> bool {
+                              return l.second < r.second;
+                          })
+                  ->first;
+
+    return id;
 }
 
 Features FaceRecognition::computeFaceDescriptor(
