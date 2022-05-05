@@ -38,6 +38,8 @@
 #include <vector>
 
 #include "../src/face_recognition.hpp"
+#include "../src/json.hpp"
+using json = nlohmann::json;
 
 using namespace std;
 
@@ -46,7 +48,25 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
     ROS4HRIFaceIdentificationTest() {
         pkg_path_ = ros::package::getPath("hri_face_identification");
         test_dir_ = pkg_path_ + "/test-data/";
+
+        std::ifstream i(test_dir_ + "/face_person_map.json");
+
+        if (i.good()) {
+            json j;
+            i >> j;
+
+            j.get_to(face_person_groups);
+
+            int i;
+            for (auto& group : face_person_groups) {
+                for (auto& face_id : group) {
+                    face_person_map[face_id] = i;
+                }
+                i++;
+            }
+        }
     }
+
     ~ROS4HRIFaceIdentificationTest() {}
 
     // void SetUp() override{}
@@ -57,6 +77,9 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
 
     FaceRecognition fr;
 
+    std::map<std::string, int> face_person_map;
+    std::vector<std::vector<std::string>> face_person_groups;
+
    private:
     ros::NodeHandle nh_;
 };
@@ -64,7 +87,7 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
 TEST_F(ROS4HRIFaceIdentificationTest, SinglePerson) {
     rosbag::Bag bag;
 
-    string face_id = "2374d";
+    string face_id = "932a0";
     bag.open(test_dir_ + string("face_") + face_id + ".bag",
              rosbag::bagmode::Read);
 
@@ -84,7 +107,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePerson) {
             idx++;
 
             auto cv_face = cv_bridge::toCvCopy(face)->image;
-            auto res = fr.processFace(cv_face);
+            auto res = fr.processFace(cv_face, true);
             EXPECT_EQ(res.size(), 1);
 
             if (person_id.empty()) {
@@ -96,134 +119,70 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePerson) {
     }
     bag.close();
 }
-//
-// TEST_F(ROS4HRIFaceIdentificationTest, DISABLED_ConsistentFacesBag) {
-//    ros::NodeHandle nh;
-//
-//    std::vector<std::string> bags = {"severin_face_gt.bag"};
-//
-//    for (const std::string &bag_file : bags) {
-//        std::string bag_name = "../bags/" + bag_file;
-//
-//        SCOPED_TRACE(bag_name);
-//
-//        // playRosbag(test_dir_ + bag_name);
-//
-//        rosbag::Bag bag;
-//
-//        bag.open(test_dir_ + bag_name, rosbag::bagmode::Read);
-//        rosbag::View view(bag, rosbag::TopicQuery(FACES));
-//
-//        size_t total_faces = 0;
-//        size_t total_rois = 0;
-//        for (const auto &m : view) {
-//            auto msg = m.instantiate<hri_msgs::IdsList>();
-//            total_faces += msg->ids.size();
-//        }
-//
-//        rosbag::View face_view(
-//            bag, ROS4HRITopicsQuery(ROS4HRITopicsQuery::Subtopic::face,
-//            "roi"));
-//
-//        for (const auto &f : face_view) {
-//            auto roi = f.instantiate<sensor_msgs::RegionOfInterest>();
-//            total_rois += 1;
-//            EXPECT_TRUE(roi->width > 0);
-//            EXPECT_TRUE(roi->height > 0);
-//        }
-//
-//        // check the 'faces/tracked' list of face IDs matches the
-//        // number of faces actually published
-//        EXPECT_EQ(total_faces, total_rois);
-//    }
-//}
-//
-// TEST_F(ROS4HRIFaceIdentificationTest, DISABLED_FaceIdentification) {
-//    ros::NodeHandle nh;
-//
-//    std::vector<std::string> bags = {"severin_face_gt.bag"};
-//
-//    for (const std::string &bag_file : bags) {
-//        std::string bag_name = "../bags/" + bag_file;
-//
-//        ROS_INFO_STREAM("[II] Processing " << bag_name);
-//        SCOPED_TRACE(bag_name);
-//
-//        // playRosbag(test_dir_ + bag_name);
-//
-//        rosbag::Bag bag;
-//
-//        bag.open(test_dir_ + bag_name, rosbag::bagmode::Read);
-//        rosbag::View view(bag, rosbag::TopicQuery(RGB_COMPRESSED));
-//
-//        size_t nb_imgs = 0;
-//        size_t missed_frames = 0;
-//
-//        for (const auto &m : view) {
-//            if (m.getTopic() == RGB_COMPRESSED) {
-//                auto current_ = m.getTime();
-//
-//                auto compressed_rgb =
-//                    m.instantiate<sensor_msgs::CompressedImage>();
-//
-//                if (compressed_rgb != NULL) {
-//                    nb_imgs += 1;
-//
-//                    // decompress image & publish it
-//                    auto cvimg = cv::imdecode(compressed_rgb->data, 1);
-//                    auto img_msg =
-//                    cv_bridge::CvImage(compressed_rgb->header,
-//                                                      "bgr8", cvimg)
-//                                       .toImageMsg();
-//                    img_publisher_.publish(img_msg);
-//
-//                    // res contains the list of detected face ids
-//                    // (hri_msgs::IdsList)
-//                    auto res = waitForFaces();
-//
-//                    if (!res) {
-//                        missed_frames += 1;
-//                        continue;
-//                    }
-//
-//                    // faces msg MUST reuse the timestamp of the original
-//                    image ASSERT_EQ(res->header.stamp,
-//                    img_msg->header.stamp);
-//
-//                    rosbag::View face_view(bag, rosbag::TopicQuery(FACES),
-//                                           current_ - ros::Duration(1, 0),
-//                                           current_ + ros::Duration(1,
-//                                           0));
-//
-//                    for (rosbag::MessageInstance const f : face_view) {
-//                        auto groundtruth =
-//                        f.instantiate<hri_msgs::IdsList>(); if
-//                        (groundtruth->header.stamp ==
-//                            img_msg->header.stamp) {
-//                            EXPECT_EQ(res->ids.size(),
-//                            groundtruth->ids.size())
-//                                << "on frame " << nb_imgs << " (" <<
-//                                current_
-//                                << "), # of detected face do not match
-//                                ground
-//                                "
-//                                   "truth";
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//
-//        ROS_INFO_STREAM("[II] Processed " << nb_imgs << " frames");
-//
-//        // first frame is always missed -> connection delay between
-//        publishers
-//        // and subscribers?
-//        ASSERT_LE(missed_frames, 1) << "Frames where missed";
-//    }
-//}
-//
-int main(int argc, char **argv) {
+
+TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
+    rosbag::Bag bag;
+
+    size_t face_idx = 0;
+    std::map<int, std::string> face_person_result_map;
+
+    for (auto& group : face_person_groups) {
+        for (auto& face_id : group) {
+            ROS_INFO_STREAM("Processing bag " << test_dir_ << "/face_"
+                                              << face_id << ".bag");
+
+            int expected_id = face_person_map[face_id];
+            ROS_INFO_STREAM("This bag contains face " << expected_id);
+
+            bag.open(test_dir_ + string("face_") + face_id + ".bag",
+                     rosbag::bagmode::Read);
+
+            std::vector<std::string> topics;
+            topics.push_back(
+                std::string("/humans/faces/" + face_id + "/aligned"));
+
+            rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+            size_t idx = 0;
+
+            std::vector<std::string> known_person_ids;
+
+            for (rosbag::MessageInstance const m : view) {
+                sensor_msgs::Image::ConstPtr face =
+                    m.instantiate<sensor_msgs::Image>();
+                if (face != NULL) {
+                    ROS_INFO_STREAM("Testing frame " << idx);
+                    idx++;
+
+                    auto cv_face = cv_bridge::toCvCopy(face)->image;
+                    auto person_id = fr.bestMatch(
+                        cv_face,
+                        true);  // true means that a new person_id will be
+                                // created if the face is not identified
+
+                    ASSERT_NE(person_id.size(),
+                              0);  // make sure an ID is returned
+
+                    if (face_person_result_map.count(expected_id) == 0) {
+                        // it should be a new person!
+                        EXPECT_TRUE(std::find(known_person_ids.begin(),
+                                              known_person_ids.end(),
+                                              person_id) ==
+                                    known_person_ids.end());
+                        face_person_result_map[expected_id] = person_id;
+                        known_person_ids.push_back(person_id);
+                    } else {
+                        EXPECT_EQ(person_id,
+                                  face_person_result_map[expected_id]);
+                    }
+                }
+            }
+            bag.close();
+        }
+    }
+}
+
+int main(int argc, char** argv) {
     testing::InitGoogleTest(&argc, argv);
     ros::init(argc, argv, "ros4hri_face_identification_test");
     ros::NodeHandle nh;
