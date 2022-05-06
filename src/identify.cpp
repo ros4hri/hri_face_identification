@@ -40,6 +40,15 @@ using namespace ros;
 using namespace hri;
 using namespace std;
 
+map<Id, FaceWeakConstPtr> tracked_faces;
+
+void onFace(FaceWeakConstPtr face) {
+    auto face_ptr = face.lock();
+    if (face_ptr) {
+        tracked_faces[face_ptr->id()] = face;
+    }
+}
+
 int main(int argc, char** argv) {
     ros::init(argc, argv, "hri_face_identification");
 
@@ -63,19 +72,22 @@ int main(int argc, char** argv) {
 
     HRIListener hri_listener;
 
-    // hri_listener.onFace(&onFace);
-
     auto candidate_matches_pub =
         nh.advertise<hri_msgs::IdsMatch>("/humans/candidate_matches", 1, false);
+
+    hri_listener.onFace(&onFace);
 
     // ready to go!
     semaphore_pub.publish(std_msgs::Empty());
 
+    map<Id, map<Id, float> > face_persons_map;
+
     while (ros::ok()) {
-        auto faces = hri_listener.getFaces();
-        for (auto& f : faces) {
-            auto face_id = f.first;
-            auto face = f.second.lock();
+        vector<Id> faces_to_remove;
+
+        for (const auto& kv : tracked_faces) {
+            auto face_id = kv.first;
+            auto face = kv.second.lock();
             if (face) {
                 if (face->aligned().empty()) continue;
 
@@ -88,9 +100,36 @@ int main(int argc, char** argv) {
                     match.confidence = res.second;
                     match.face_id = face_id;
 
+                    face_persons_map[face_id][res.first] = res.second;
+
                     candidate_matches_pub.publish(match);
                 }
             }
+            // face.lock() returns an empty pointer? the face does not exist
+            // anymore!
+            else {
+                faces_to_remove.push_back(face_id);
+
+                // for all the person id previously associated to this face,
+                // publish a 'match' with confidence = 0 to dis-associate them.
+                for (const auto& person : face_persons_map[face_id]) {
+                    ROS_INFO_STREAM(
+                        "Face " << face_id
+                                << " not tracked. Dis-associating from person "
+                                << person.first);
+
+                    hri_msgs::IdsMatch match;
+                    match.person_id = person.first;
+                    match.confidence = 0.0;
+                    match.face_id = face_id;
+
+                    candidate_matches_pub.publish(match);
+                }
+            }
+        }
+
+        for (const auto& id : faces_to_remove) {
+            tracked_faces.erase(id);
         }
 
         loop_rate.sleep();
