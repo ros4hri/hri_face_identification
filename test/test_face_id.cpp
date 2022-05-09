@@ -158,7 +158,6 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
                 m.instantiate<sensor_msgs::Image>();
             if (face != NULL) {
                 ROS_INFO_STREAM("Testing frame " << idx);
-                idx++;
 
                 total_faces += 1;
 
@@ -183,12 +182,15 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
                     known_person_ids.push_back(person_id);
                 } else {
                     if (confidence < CONFIDENCE_THRESHOLD) {
+                        ROS_INFO_STREAM("unsure match on frame " << idx);
                         unsure_matches += 1;
                     } else {
                         EXPECT_EQ(person_id,
                                   face_person_result_map[expected_id]);
                     }
                 }
+
+                idx++;
             }
         }
         bag.close();
@@ -249,7 +251,6 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
                         m.instantiate<sensor_msgs::Image>();
                     if (face != NULL) {
                         ROS_INFO_STREAM("Testing frame " << idx);
-                        idx++;
 
                         total_faces += 1;
 
@@ -275,12 +276,16 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
                             known_person_ids.push_back(person_id);
                         } else {
                             if (confidence < CONFIDENCE_THRESHOLD) {
+                                ROS_INFO_STREAM("unsure match on frame "
+                                                << idx);
                                 unsure_matches += 1;
                             } else {
                                 EXPECT_EQ(person_id,
                                           face_person_result_map[expected_id]);
                             }
                         }
+
+                        idx++;
                     }
                 }
                 bag.close();
