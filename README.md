@@ -31,6 +31,12 @@ ROS API
   whether or not unknown faces will be added to the database. If set to false,
   only *previously identified* faces are recognised (and the face database will
   not be modified).
+- `~identify_all_faces` (default: `false`):
+  whether or not already-tracked faces are re-identified. If false, face
+  identification is only performed when face id changes, ie a currently-tracked
+  face will not be re-identified every frame; if true, all received faces (on
+  `/humans/faces/<id>/aligned`) will run through face identification at every
+  frame.
 
 ### Topics
 

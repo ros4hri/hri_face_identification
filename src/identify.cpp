@@ -74,6 +74,13 @@ int main(int argc, char** argv) {
             "people already in the database will be recognised");
     }
 
+    // if false, face identification is only performed when face id changes, ie
+    // a currently tracked face will not be re-identified every frame; if true,
+    // all received faces (on /humans/faces/<id>/aligned) will run through face
+    // identification.
+    bool reidentify_all_faces;
+    ros::param::param<bool>("~identify_all_faces", reidentify_all_faces, false);
+
     string face_db_path;
     ros::param::param<string>("/humans/face_identification/face_database_path",
                               face_db_path, "face_db.json");
@@ -94,6 +101,8 @@ int main(int argc, char** argv) {
     // ready to go!
     semaphore_pub.publish(std_msgs::Empty());
 
+    // mapping between a face_id and all the possible recognised person_id
+    // (with their confidence level) for that face.
     map<Id, map<Id, float> > face_persons_map;
 
     while (ros::ok()) {
@@ -106,8 +115,19 @@ int main(int argc, char** argv) {
                 if (face->aligned().empty()) continue;
 
                 ROS_DEBUG_STREAM("Got face " << face_id);
-                auto results =
-                    fr.processFace(face->aligned(), create_person_if_needed);
+
+                map<Id, float> results;
+
+                if (!reidentify_all_faces &&
+                    face_persons_map.count(face_id) != 0) {
+                    results = face_persons_map[face_id];
+                } else {
+                    ROS_INFO("Trying to identify the face...");
+                    // note that this might return more than one match! each
+                    // match has an associated confidence level
+                    results = fr.processFace(face->aligned(),
+                                             create_person_if_needed);
+                }
 
                 for (const auto& res : results) {
                     hri_msgs::IdsMatch match;
