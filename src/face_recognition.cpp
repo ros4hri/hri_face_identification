@@ -144,22 +144,21 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face,
     }
 }
 
-Id FaceRecognition::bestMatch(const cv::Mat& face,
-                              bool create_person_if_needed) {
+pair<Id, float> FaceRecognition::bestMatch(const cv::Mat& face,
+                                           bool create_person_if_needed) {
     auto candidates = processFace(face, create_person_if_needed);
 
     if (candidates.empty()) {
-        return Id();
+        return make_pair(Id(), 0.0);
     }
 
-    auto id = max_element(candidates.begin(), candidates.end(),
-                          [](decltype(candidates)::value_type& l,
-                             decltype(candidates)::value_type& r) -> bool {
-                              return l.second < r.second;
-                          })
-                  ->first;
+    auto best = max_element(candidates.begin(), candidates.end(),
+                            [](decltype(candidates)::value_type& l,
+                               decltype(candidates)::value_type& r) -> bool {
+                                return l.second < r.second;
+                            });
 
-    return id;
+    return make_pair(best->first, best->second);
 }
 
 Features FaceRecognition::computeFaceDescriptor(
