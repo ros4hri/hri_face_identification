@@ -294,6 +294,58 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
                     << total_faces << " total faces)");
 }
 
+TEST_F(ROS4HRIFaceIdentificationTest, DBStoreLoad) {
+    rosbag::Bag bag;
+
+    string face_id = "932a0";
+    bag.open(test_dir_ + string("face_") + face_id + ".bag",
+             rosbag::bagmode::Read);
+
+    std::vector<std::string> topics;
+    topics.push_back(std::string("/humans/faces/" + face_id + "/aligned"));
+
+    rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+    string person_id;
+
+    size_t idx = 0;
+
+    sensor_msgs::Image::ConstPtr face;
+
+    face = (*view.begin()).instantiate<sensor_msgs::Image>();
+
+    ASSERT_TRUE(face != NULL);
+
+    auto cv_face = cv_bridge::toCvCopy(face)->image;
+    auto res = fr.processFace(cv_face, true);
+
+    ASSERT_EQ((*res.begin()).second, 1.0)
+        << "Should be a newly detected face, eg confidence = 1";
+    person_id = (*res.begin()).first;
+
+    fr.storeFaceDB("/tmp/hri_face_identification_test.json");
+
+    fr.dropFaceDB();
+
+    // no faces anymore: we should re-generate a new random face id
+    res = fr.processFace(cv_face, true);
+
+    ASSERT_EQ((*res.begin()).second, 1.0)
+        << "Should be again a newly detected face, eg confidence = 1";
+
+    ASSERT_NE((*res.begin()).first, person_id)
+        << "A new random id should have been generated";
+
+    fr.dropFaceDB();
+    fr.loadFaceDB("/tmp/hri_face_identification_test.json");
+
+    // this time, we've re-loaded the face db: we should re-detect the original
+    // person
+    res = fr.processFace(cv_face, true);
+
+    ASSERT_EQ((*res.begin()).first, person_id);
+
+    bag.close();
 }
 
 int main(int argc, char** argv) {
