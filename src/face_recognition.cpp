@@ -46,9 +46,9 @@ using namespace std;
 Id generate_id(const int len = 5) {
     // not a great implementation. Please suggest improvements if you feel like
     // it!
-    static const array<string, 26> alphanum = {
-        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-        "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"};
+    static const array<string, 26> alphanum{
+        {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+         "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}};
     string tmp_s;
     tmp_s.reserve(len);
 
