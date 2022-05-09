@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.0 (2022-05-09)
+------------------
 * add option to only identify faces when their (tracking) id changes
   This is the new default, significantly reducing the CPU/GPU needs for the node.
 * always generate different random IDs, even if less than a sec since last generation
