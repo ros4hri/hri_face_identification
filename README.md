@@ -27,6 +27,10 @@ ROS API
 - `/humans/face_identification/face_database_path` (default: `face_db.json`):
   full path to the face database where known faces will be permanently stored.
   Delete this file to 'start from scratch', with no known faces.
+- `~can_learn_new_faces` (default: `true`):
+  whether or not unknown faces will be added to the database. If set to false,
+  only *previously identified* faces are recognised (and the face database will
+  not be modified).
 
 ### Topics
 

@@ -60,6 +60,20 @@ int main(int argc, char** argv) {
     ros::param::param<float>("/humans/face_identification/match_threshold",
                              match_threshold, DEFAULT_MATCH_THRESHOLD);
 
+    bool create_person_if_needed;
+    ros::param::param<bool>("~can_learn_new_faces", create_person_if_needed,
+                            true);
+
+    if (create_person_if_needed) {
+        ROS_INFO(
+            "_can_learn_new_faces:=true (default): I will learn new faces, and "
+            "add them to the face database");
+    } else {
+        ROS_WARN(
+            "_can_learn_new_faces:=false: I will NOT learn new faces; only "
+            "people already in the database will be recognised");
+    }
+
     string face_db_path;
     ros::param::param<string>("/humans/face_identification/face_database_path",
                               face_db_path, "face_db.json");
@@ -91,8 +105,9 @@ int main(int argc, char** argv) {
             if (face) {
                 if (face->aligned().empty()) continue;
 
-                ROS_INFO_STREAM("Got face " << face_id);
-                auto results = fr.processFace(face->aligned());
+                ROS_DEBUG_STREAM("Got face " << face_id);
+                auto results = fr.processFace(face->aligned(),
+                                              true);  // by default, create
 
                 for (const auto& res : results) {
                     hri_msgs::IdsMatch match;
