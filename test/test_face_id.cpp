@@ -120,6 +120,66 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePerson) {
     bag.close();
 }
 
+TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
+    rosbag::Bag bag;
+
+    size_t face_idx = 0;
+    std::map<int, std::string> face_person_result_map;
+    auto group =
+        face_person_groups[0];  // 5 different bag files, recorded under
+                                // different conditions, of the same person
+
+    for (auto& face_id : group) {
+        ROS_INFO_STREAM("Processing bag " << test_dir_ << "/face_" << face_id
+                                          << ".bag");
+
+        int expected_id = face_person_map[face_id];
+        ROS_INFO_STREAM("This bag should contain face " << expected_id);
+
+        bag.open(test_dir_ + string("face_") + face_id + ".bag",
+                 rosbag::bagmode::Read);
+
+        std::vector<std::string> topics;
+        topics.push_back(std::string("/humans/faces/" + face_id + "/aligned"));
+
+        rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+        size_t idx = 0;
+
+        std::vector<std::string> known_person_ids;
+
+        for (rosbag::MessageInstance const m : view) {
+            sensor_msgs::Image::ConstPtr face =
+                m.instantiate<sensor_msgs::Image>();
+            if (face != NULL) {
+                ROS_INFO_STREAM("Testing frame " << idx);
+                idx++;
+
+                auto cv_face = cv_bridge::toCvCopy(face)->image;
+                auto person_id = fr.bestMatch(
+                    cv_face,
+                    true);  // true means that a new person_id will be
+                            // created if the face is not identified
+
+                ASSERT_NE(person_id.size(),
+                          0);  // make sure an ID is returned
+
+                if (face_person_result_map.count(expected_id) == 0) {
+                    // it should be a new person!
+                    EXPECT_TRUE(std::find(known_person_ids.begin(),
+                                          known_person_ids.end(),
+                                          person_id) == known_person_ids.end());
+                    face_person_result_map[expected_id] = person_id;
+                    known_person_ids.push_back(person_id);
+                } else {
+                    EXPECT_EQ(person_id, face_person_result_map[expected_id]);
+                }
+            }
+        }
+        bag.close();
+    }
+}
+
 TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
     rosbag::Bag bag;
 
@@ -132,7 +192,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
                                               << face_id << ".bag");
 
             int expected_id = face_person_map[face_id];
-            ROS_INFO_STREAM("This bag contains face " << expected_id);
+            ROS_INFO_STREAM("This bag should contain face " << expected_id);
 
             bag.open(test_dir_ + string("face_") + face_id + ".bag",
                      rosbag::bagmode::Read);
