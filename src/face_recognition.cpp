@@ -44,13 +44,17 @@ using json = nlohmann::json;
 using namespace std;
 
 Id generate_id(const int len = 5) {
-    static const char alphanum[] = "abcdefghijklmnopqrstuvwxyz";
+    // not a great implementation. Please suggest improvements if you feel like
+    // it!
+    static const array<string, 26> alphanum = {
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+        "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"};
     string tmp_s;
     tmp_s.reserve(len);
 
     std::random_device dev;
     std::mt19937 rng(dev());
-    std::uniform_int_distribution<uint32_t> rnd_dist(0, sizeof(alphanum) - 1);
+    std::uniform_int_distribution<uint32_t> rnd_dist(0, alphanum.size() - 1);
 
     for (int i = 0; i < len; ++i) {
         tmp_s += alphanum[rnd_dist(rng)];
@@ -116,8 +120,8 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face,
         if (candidates.size() == 1) {
             auto& kv = *candidates.begin();
             // we've got a match!
-            ROS_DEBUG_STREAM("Found a match with person "
-                             << kv.first << " (confidence: " << kv.second);
+            ROS_INFO_STREAM("Found a match with person "
+                            << kv.first << " (confidence: " << kv.second);
 
             // compute & add new face descriptor for that person if too
             // far from the original one, but not too bad either (to avoid
