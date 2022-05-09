@@ -51,11 +51,11 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
         pkg_path_ = ros::package::getPath("hri_face_identification");
         test_dir_ = pkg_path_ + "/test-data/";
 
-        std::ifstream i(test_dir_ + "/face_person_map.json");
+        std::ifstream input(test_dir_ + "/face_person_map.json");
 
-        if (i.good()) {
+        if (input.good()) {
             json j;
-            i >> j;
+            input >> j;
 
             j.get_to(face_person_groups);
 
