@@ -43,6 +43,8 @@ using json = nlohmann::json;
 
 using namespace std;
 
+const float CONFIDENCE_THRESHOLD = 0.3;
+
 class ROS4HRIFaceIdentificationTest : public ::testing::Test {
    public:
     ROS4HRIFaceIdentificationTest() {
@@ -129,6 +131,9 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
         face_person_groups[0];  // 5 different bag files, recorded under
                                 // different conditions, of the same person
 
+    int total_faces = 0;
+    int unsure_matches = 0;
+
     for (auto& face_id : group) {
         ROS_INFO_STREAM("Processing bag " << test_dir_ << "/face_" << face_id
                                           << ".bag");
@@ -155,11 +160,16 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
                 ROS_INFO_STREAM("Testing frame " << idx);
                 idx++;
 
+                total_faces += 1;
+
                 auto cv_face = cv_bridge::toCvCopy(face)->image;
-                auto person_id = fr.bestMatch(
+                auto best = fr.bestMatch(
                     cv_face,
                     true);  // true means that a new person_id will be
                             // created if the face is not identified
+
+                auto person_id = best.first;
+                auto confidence = best.second;
 
                 ASSERT_NE(person_id.size(),
                           0);  // make sure an ID is returned
@@ -172,12 +182,21 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
                     face_person_result_map[expected_id] = person_id;
                     known_person_ids.push_back(person_id);
                 } else {
-                    EXPECT_EQ(person_id, face_person_result_map[expected_id]);
+                    if (confidence < CONFIDENCE_THRESHOLD) {
+                        unsure_matches += 1;
+                    } else {
+                        EXPECT_EQ(person_id,
+                                  face_person_result_map[expected_id]);
+                    }
                 }
             }
         }
         bag.close();
     }
+    ROS_WARN_STREAM(
+        "[Single person, multi-bags] Total number of 'unsure' matches:"
+        << unsure_matches << " (" << (100. * unsure_matches / total_faces)
+        << "% of " << total_faces << " total faces)");
 }
 
 TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
@@ -186,60 +205,95 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
     size_t face_idx = 0;
     std::map<int, std::string> face_person_result_map;
 
-    for (auto& group : face_person_groups) {
-        for (auto& face_id : group) {
-            ROS_INFO_STREAM("Processing bag " << test_dir_ << "/face_"
-                                              << face_id << ".bag");
+    const size_t SKIP_FRAMES = 10;
+    size_t skipped_frames = 0;
 
-            int expected_id = face_person_map[face_id];
-            ROS_INFO_STREAM("This bag should contain face " << expected_id);
+    int total_faces = 0;
+    int unsure_matches = 0;
 
-            bag.open(test_dir_ + string("face_") + face_id + ".bag",
-                     rosbag::bagmode::Read);
+    const size_t NB_FOLDS = 2;
 
-            std::vector<std::string> topics;
-            topics.push_back(
-                std::string("/humans/faces/" + face_id + "/aligned"));
+    for (int fold = 1; fold <= NB_FOLDS; fold++) {
+        ROS_INFO_STREAM("Running fold " << fold << " of " << NB_FOLDS);
 
-            rosbag::View view(bag, rosbag::TopicQuery(topics));
+        for (auto& group : face_person_groups) {
+            for (auto& face_id : group) {
+                ROS_INFO_STREAM("Processing bag " << test_dir_ << "/face_"
+                                                  << face_id << ".bag");
 
-            size_t idx = 0;
+                int expected_id = face_person_map[face_id];
+                ROS_INFO_STREAM("This bag should contain face " << expected_id);
 
-            std::vector<std::string> known_person_ids;
+                bag.open(test_dir_ + string("face_") + face_id + ".bag",
+                         rosbag::bagmode::Read);
 
-            for (rosbag::MessageInstance const m : view) {
-                sensor_msgs::Image::ConstPtr face =
-                    m.instantiate<sensor_msgs::Image>();
-                if (face != NULL) {
-                    ROS_INFO_STREAM("Testing frame " << idx);
-                    idx++;
+                std::vector<std::string> topics;
+                topics.push_back(
+                    std::string("/humans/faces/" + face_id + "/aligned"));
 
-                    auto cv_face = cv_bridge::toCvCopy(face)->image;
-                    auto person_id = fr.bestMatch(
-                        cv_face,
-                        true);  // true means that a new person_id will be
-                                // created if the face is not identified
+                rosbag::View view(bag, rosbag::TopicQuery(topics));
 
-                    ASSERT_NE(person_id.size(),
-                              0);  // make sure an ID is returned
+                size_t idx = 0;
 
-                    if (face_person_result_map.count(expected_id) == 0) {
-                        // it should be a new person!
-                        EXPECT_TRUE(std::find(known_person_ids.begin(),
-                                              known_person_ids.end(),
-                                              person_id) ==
-                                    known_person_ids.end());
-                        face_person_result_map[expected_id] = person_id;
-                        known_person_ids.push_back(person_id);
+                std::vector<std::string> known_person_ids;
+
+                for (rosbag::MessageInstance const m : view) {
+                    skipped_frames += 1;
+                    if ((skipped_frames % SKIP_FRAMES) != 0) {
+                        continue;
                     } else {
-                        EXPECT_EQ(person_id,
-                                  face_person_result_map[expected_id]);
+                        skipped_frames = 0;
+                    }
+
+                    sensor_msgs::Image::ConstPtr face =
+                        m.instantiate<sensor_msgs::Image>();
+                    if (face != NULL) {
+                        ROS_INFO_STREAM("Testing frame " << idx);
+                        idx++;
+
+                        total_faces += 1;
+
+                        auto cv_face = cv_bridge::toCvCopy(face)->image;
+                        auto best = fr.bestMatch(
+                            cv_face,
+                            true);  // true means that a new person_id will be
+                                    // created if the face is not identified
+
+                        auto person_id = best.first;
+                        auto confidence = best.second;
+
+                        ASSERT_NE(person_id.size(),
+                                  0);  // make sure an ID is returned
+
+                        if (face_person_result_map.count(expected_id) == 0) {
+                            // it should be a new person!
+                            EXPECT_TRUE(std::find(known_person_ids.begin(),
+                                                  known_person_ids.end(),
+                                                  person_id) ==
+                                        known_person_ids.end());
+                            face_person_result_map[expected_id] = person_id;
+                            known_person_ids.push_back(person_id);
+                        } else {
+                            if (confidence < CONFIDENCE_THRESHOLD) {
+                                unsure_matches += 1;
+                            } else {
+                                EXPECT_EQ(person_id,
+                                          face_person_result_map[expected_id]);
+                            }
+                        }
                     }
                 }
+                bag.close();
             }
-            bag.close();
         }
     }
+
+    ROS_WARN_STREAM("[Multiple people] Total number of 'unsure' matches:"
+                    << unsure_matches << " ("
+                    << (100. * unsure_matches / total_faces) << "% of "
+                    << total_faces << " total faces)");
+}
+
 }
 
 int main(int argc, char** argv) {
