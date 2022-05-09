@@ -33,9 +33,10 @@
 #include <ros/ros.h>
 #include <time.h>
 
-#include <cstdlib>  // for srand()
+#include <random>
 //#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <utility>
 
 #include "json.hpp"
 using json = nlohmann::json;
@@ -47,10 +48,12 @@ Id generate_id(const int len = 5) {
     string tmp_s;
     tmp_s.reserve(len);
 
-    ::srand(time(NULL));
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<uint32_t> rnd_dist(0, sizeof(alphanum) - 1);
 
     for (int i = 0; i < len; ++i) {
-        tmp_s += alphanum[::rand() % (sizeof(alphanum) - 1)];
+        tmp_s += alphanum[rnd_dist(rng)];
     }
 
     return tmp_s;
