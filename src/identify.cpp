@@ -106,8 +106,8 @@ int main(int argc, char** argv) {
                 if (face->aligned().empty()) continue;
 
                 ROS_DEBUG_STREAM("Got face " << face_id);
-                auto results = fr.processFace(face->aligned(),
-                                              true);  // by default, create
+                auto results =
+                    fr.processFace(face->aligned(), create_person_if_needed);
 
                 for (const auto& res : results) {
                     hri_msgs::IdsMatch match;
