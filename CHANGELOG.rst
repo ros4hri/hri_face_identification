@@ -2,6 +2,20 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add option to only identify faces when their (tracking) id changes
+  This is the new default, significantly reducing the CPU/GPU needs for the node.
+* always generate different random IDs, even if less than a sec since last generation
+  (previous seed was in sec, henceforth generating same IDs within the same second)
+* add method to empty to list of known faces (dropFaceDB)
+* when a face disappear, publish a 'match' of confidence 0 to disassociate the face/person
+* significantly expand the unit-tests, with a much broader set of faces
+* only create new faces in db if requested (flag create_id_if_needed). By default, add new faces to the face database
+* add bestMatch to directly return best candidate person id
+* generate person_id with only letters to avoid purely numerical id (that would be invalid ROS id)
+* Contributors: Séverin Lemaignan
+
 0.2.0 (2022-05-02)
 ------------------
 * add LICENSE (BSD) 
