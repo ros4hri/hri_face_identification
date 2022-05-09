@@ -57,7 +57,7 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
 
             j.get_to(face_person_groups);
 
-            int i;
+            int i = 0;
             for (auto& group : face_person_groups) {
                 for (auto& face_id : group) {
                     face_person_map[face_id] = i;
@@ -69,7 +69,7 @@ class ROS4HRIFaceIdentificationTest : public ::testing::Test {
 
     ~ROS4HRIFaceIdentificationTest() {}
 
-    // void SetUp() override{}
+    void SetUp() override { fr.dropFaceDB(); }
     // void TearDown() override{}
 
     std::string pkg_path_;

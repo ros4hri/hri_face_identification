@@ -258,3 +258,5 @@ void FaceRecognition::loadFaceDB(string path) {
     }
 }
 
+void FaceRecognition::dropFaceDB() { person_descriptors.clear(); }
+

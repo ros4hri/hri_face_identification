@@ -159,8 +159,22 @@ class FaceRecognition {
      */
     std::map<Id, float> findCandidates(Features descriptor);
 
+    /** stores the face database, in JSON format.
+     */
     void storeFaceDB(std::string path) const;
+
+    /** loads a face database in JSON format.
+     */
     void loadFaceDB(std::string path);
+
+    /** empties the face database. All previously identified persons will have
+     * to be re-identified.
+     *
+     * Note that the on-disk database is not emptied/deleted.
+     * Call FaceRecognition::storeFaceDB after calling
+     * FaceRecognition::dropFaceDB to effectively delete all stored faces.
+     */
+    void dropFaceDB();
 
    private:
     float computeConfidence(float distance) {
