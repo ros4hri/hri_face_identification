@@ -44,7 +44,7 @@ using json = nlohmann::json;
 using namespace std;
 
 Id generate_id(const int len = 5) {
-    static const char alphanum[] = "0123456789abcdef";
+    static const char alphanum[] = "abcdefghijklmnopqrstuvwxyz";
     string tmp_s;
     tmp_s.reserve(len);
 
