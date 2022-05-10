@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.1 (2022-05-10)
+------------------
 * [api] polish API
   renamed 'processFaces' into 'getAllMatches' and 'bestMatch' into 'getBestMatch'
 * Contributors: Séverin Lemaignan
