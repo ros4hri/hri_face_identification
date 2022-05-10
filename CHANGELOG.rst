@@ -2,6 +2,12 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* [api] polish API
+  renamed 'processFaces' into 'getAllMatches' and 'bestMatch' into 'getBestMatch'
+* Contributors: Séverin Lemaignan
+
 0.3.0 (2022-05-09)
 ------------------
 * add option to only identify faces when their (tracking) id changes
