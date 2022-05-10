@@ -104,8 +104,8 @@ class FaceRecognition {
      * If `create_person_if_needed` is true (default: false), a new person ID is
      * generated for the face, if the face does not match any known one.
      */
-    std::map<Id, float> processFace(const cv::Mat& face,
-                                    bool create_person_if_needed = false);
+    std::map<Id, float> getAllMatches(const cv::Mat& face,
+                                      bool create_person_if_needed = false);
 
     /** returns the best match between the provided face and the know faces,
      * with the associated confidence level (between 0.0 and 1.0).
@@ -118,8 +118,8 @@ class FaceRecognition {
      * returns an empty ID if not satisfactory match found.
      * Else, a new person ID will be generated and returned.
      */
-    std::pair<Id, float> bestMatch(const cv::Mat& face,
-                                   bool create_person_if_needed = false);
+    std::pair<Id, float> getBestMatch(const cv::Mat& face,
+                                      bool create_person_if_needed = false);
 
     /** compute a face descriptor by projecting a face on the dlib's trained
      * facial recognition embedding.

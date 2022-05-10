@@ -125,8 +125,8 @@ int main(int argc, char** argv) {
                     ROS_INFO("Trying to identify the face...");
                     // note that this might return more than one match! each
                     // match has an associated confidence level
-                    results = fr.processFace(face->aligned(),
-                                             create_person_if_needed);
+                    results = fr.getAllMatches(face->aligned(),
+                                               create_person_if_needed);
                 }
 
                 for (const auto& res : results) {

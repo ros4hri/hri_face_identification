@@ -109,7 +109,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePerson) {
             idx++;
 
             auto cv_face = cv_bridge::toCvCopy(face)->image;
-            auto res = fr.processFace(cv_face, true);
+            auto res = fr.getAllMatches(cv_face, true);
             EXPECT_EQ(res.size(), 1);
 
             if (person_id.empty()) {
@@ -162,7 +162,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, SinglePersonMultipleFiles) {
                 total_faces += 1;
 
                 auto cv_face = cv_bridge::toCvCopy(face)->image;
-                auto best = fr.bestMatch(
+                auto best = fr.getBestMatch(
                     cv_face,
                     true);  // true means that a new person_id will be
                             // created if the face is not identified
@@ -255,7 +255,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, MultiPerson) {
                         total_faces += 1;
 
                         auto cv_face = cv_bridge::toCvCopy(face)->image;
-                        auto best = fr.bestMatch(
+                        auto best = fr.getBestMatch(
                             cv_face,
                             true);  // true means that a new person_id will be
                                     // created if the face is not identified
@@ -322,7 +322,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, DBStoreLoad) {
     ASSERT_TRUE(face != NULL);
 
     auto cv_face = cv_bridge::toCvCopy(face)->image;
-    auto res = fr.processFace(cv_face, true);
+    auto res = fr.getAllMatches(cv_face, true);
 
     ASSERT_EQ((*res.begin()).second, 1.0)
         << "Should be a newly detected face, eg confidence = 1";
@@ -333,7 +333,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, DBStoreLoad) {
     fr.dropFaceDB();
 
     // no faces anymore: we should re-generate a new random face id
-    res = fr.processFace(cv_face, true);
+    res = fr.getAllMatches(cv_face, true);
 
     ASSERT_EQ((*res.begin()).second, 1.0)
         << "Should be again a newly detected face, eg confidence = 1";
@@ -346,7 +346,7 @@ TEST_F(ROS4HRIFaceIdentificationTest, DBStoreLoad) {
 
     // this time, we've re-loaded the face db: we should re-detect the original
     // person
-    res = fr.processFace(cv_face, true);
+    res = fr.getAllMatches(cv_face, true);
 
     ASSERT_EQ((*res.begin()).first, person_id);
 

@@ -75,8 +75,8 @@ FaceRecognition::FaceRecognition(float _match_threshold)
         net;
 }
 
-std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face,
-                                                 bool create_person_if_needed) {
+std::map<Id, float> FaceRecognition::getAllMatches(
+    const cv::Mat& cv_face, bool create_person_if_needed) {
     // wraps OpenCV image into a dlib image (no data copy)
     // ATTENTION: face->aligned() should not be modified while
     // wrapped: we first clone the image to ensure this does not
@@ -148,9 +148,9 @@ std::map<Id, float> FaceRecognition::processFace(const cv::Mat& cv_face,
     }
 }
 
-pair<Id, float> FaceRecognition::bestMatch(const cv::Mat& face,
-                                           bool create_person_if_needed) {
-    auto candidates = processFace(face, create_person_if_needed);
+pair<Id, float> FaceRecognition::getBestMatch(const cv::Mat& face,
+                                              bool create_person_if_needed) {
+    auto candidates = getAllMatches(face, create_person_if_needed);
 
     if (candidates.empty()) {
         return make_pair(Id(), 0.0);
