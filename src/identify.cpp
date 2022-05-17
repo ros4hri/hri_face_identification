@@ -93,8 +93,8 @@ int main(int argc, char** argv) {
 
     HRIListener hri_listener;
 
-    auto candidate_matches_pub =
-        nh.advertise<hri_msgs::IdsMatch>("/humans/candidate_matches", 1, false);
+    auto candidate_matches_pub = nh.advertise<hri_msgs::IdsMatch>(
+        "/humans/candidate_matches", 10, false);
 
     hri_listener.onFace(&onFace);
 
