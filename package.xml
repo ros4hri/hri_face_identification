@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>hri_face_identification</name>
-  <version>0.3.1</version>
+  <version>0.3.2</version>
   <description>hri_face_identification is a ROS4HRI-compatible package for face identification</description>
 
   <maintainer email="severin.lemaignan@pal-robotics.com">Séverin Lemaignan</maintainer>
