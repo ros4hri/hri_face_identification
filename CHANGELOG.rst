@@ -2,6 +2,13 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* update to new IdsMatch.msg
+* increase candidate_matches queue size
+  This helps hri_person_manager not to miss important messages like 'X disappeared'
+* Contributors: Séverin Lemaignan
+
 0.3.1 (2022-05-10)
 ------------------
 * [api] polish API
