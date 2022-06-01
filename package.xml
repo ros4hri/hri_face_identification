@@ -11,6 +11,7 @@
   <author email="severin.lemaignan@pal-robotics.com">Séverin Lemaignan</author>
 
   <buildtool_depend>catkin</buildtool_depend>
+  <depend>rosbag</depend>
   <depend>hri_msgs</depend>
   <depend>image_transport</depend>
   <depend>libdlib-dev</depend>
