@@ -131,9 +131,11 @@ int main(int argc, char** argv) {
 
                 for (const auto& res : results) {
                     hri_msgs::IdsMatch match;
-                    match.person_id = res.first;
+                    match.id1 = res.first;
+                    match.id1_type = hri_msgs::IdsMatch::PERSON;
                     match.confidence = res.second;
-                    match.face_id = face_id;
+                    match.id2 = face_id;
+                    match.id2_type = hri_msgs::IdsMatch::FACE;
 
                     face_persons_map[face_id][res.first] = res.second;
 
@@ -154,9 +156,11 @@ int main(int argc, char** argv) {
                                 << person.first);
 
                     hri_msgs::IdsMatch match;
-                    match.person_id = person.first;
+                    match.id1 = person.first;
+                    match.id1_type = hri_msgs::IdsMatch::PERSON;
                     match.confidence = 0.0;
-                    match.face_id = face_id;
+                    match.id2 = face_id;
+                    match.id2_type = hri_msgs::IdsMatch::FACE;
 
                     candidate_matches_pub.publish(match);
                 }
