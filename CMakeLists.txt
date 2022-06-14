@@ -27,8 +27,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(hri_face_identification)
 
-add_compile_options(-std=c++11)
-
 find_package(catkin REQUIRED COMPONENTS
   hri_msgs
   image_transport
@@ -73,9 +71,17 @@ include_directories(
 )
 
 add_executable(${PROJECT_NAME}_node src/identify.cpp src/face_recognition.cpp)
-set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME identify PREFIX "")
+set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME identify PREFIX "" CXX_STANDARD 11)
 
 target_link_libraries(${PROJECT_NAME}_node
+   ${catkin_LIBRARIES}
+   dlib::dlib
+   ${BLAS_LIBRARIES}
+)
+
+add_executable(batch_process src/batch_process.cpp src/face_recognition.cpp)
+set_property(TARGET batch_process PROPERTY CXX_STANDARD 17)
+target_link_libraries(batch_process
    ${catkin_LIBRARIES}
    dlib::dlib
    ${BLAS_LIBRARIES}
@@ -97,7 +103,7 @@ target_link_libraries(${PROJECT_NAME}_node
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS ${PROJECT_NAME}_node
+install(TARGETS ${PROJECT_NAME}_node batch_process
    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
