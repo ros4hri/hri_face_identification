@@ -2,6 +2,14 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add a pre-trained face database, with 2 faces ('John' and 'Jane')
+* make it possible to load several face databases
+  Required to provide a 'static' test database, as well as a customer-specific database
+* add utility to batch-process faces and export features to CSV
+* Contributors: Séverin Lemaignan
+
 0.3.2 (2022-06-01)
 ------------------
 * update to new IdsMatch.msg
