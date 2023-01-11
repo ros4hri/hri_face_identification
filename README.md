@@ -24,9 +24,10 @@ ROS API
 - `/humans/face_identification/match_threshold` (default: 0.6): distance
   threshold (in the face embedding space) to consider two faces to belong to the
   same person.
-- `/humans/face_identification/face_database_path` (default: `face_db.json`):
-  full path to the face database where known faces will be permanently stored.
-  Delete this file to 'start from scratch', with no known faces.
+- `/humans/face_identification/face_database_paths` (default: `[face_db.json]`):
+  a list of full paths to the face databases where known faces will be loaded
+  from. The first one will also be used to permanently store newly detected
+  faces.  Delete these files to 'start from scratch', with no known faces.
 - `~can_learn_new_faces` (default: `true`):
   whether or not unknown faces will be added to the database. If set to false,
   only *previously identified* faces are recognised (and the face database will

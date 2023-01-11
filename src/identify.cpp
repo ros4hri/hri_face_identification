@@ -81,13 +81,16 @@ int main(int argc, char** argv) {
     bool reidentify_all_faces;
     ros::param::param<bool>("~identify_all_faces", reidentify_all_faces, false);
 
-    string face_db_path;
-    ros::param::param<string>("/humans/face_identification/face_database_path",
-                              face_db_path, "face_db.json");
+    vector<string> face_db_paths;
+    ros::param::param<vector<string>>(
+        "/humans/face_identification/face_database_paths", face_db_paths,
+        {"face_db.json"});
 
     FaceRecognition fr(match_threshold);
 
-    fr.loadFaceDB(face_db_path);
+    for (const auto& db : face_db_paths) {
+        fr.loadFaceDB(db);
+    }
 
     ros::Rate loop_rate(10);
 
@@ -103,7 +106,7 @@ int main(int argc, char** argv) {
 
     // mapping between a face_id and all the possible recognised person_id
     // (with their confidence level) for that face.
-    map<Id, map<Id, float> > face_persons_map;
+    map<Id, map<Id, float>> face_persons_map;
 
     while (ros::ok()) {
         vector<Id> faces_to_remove;
@@ -175,7 +178,7 @@ int main(int argc, char** argv) {
         ros::spinOnce();
     }
 
-    fr.storeFaceDB(face_db_path);
+    fr.storeFaceDB(face_db_paths[0]);
     cout << "Bye bye!" << endl;
 
     return 0;

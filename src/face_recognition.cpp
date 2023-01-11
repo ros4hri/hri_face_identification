@@ -255,7 +255,9 @@ void FaceRecognition::loadFaceDB(string path) {
         json j;
         i >> j;
 
-        person_descriptors = j.get<map<Id, std::vector<Features>>>();
+        auto new_descriptors = j.get<map<Id, std::vector<Features>>>();
+        person_descriptors.insert(new_descriptors.begin(),
+                                  new_descriptors.end());
 
         ROS_INFO_STREAM("Face database correctly loaded from " << path);
     } else {
