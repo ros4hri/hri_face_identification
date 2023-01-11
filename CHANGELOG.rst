@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.4 (2023-01-11)
+------------------
 * add a pre-trained face database, with 2 faces ('John' and 'Jane')
 * make it possible to load several face databases
   Required to provide a 'static' test database, as well as a customer-specific database
