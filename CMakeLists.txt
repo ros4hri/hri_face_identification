@@ -109,6 +109,7 @@ install(TARGETS ${PROJECT_NAME}_node batch_process
 
 install(FILES
    share/dlib_face_recognition_resnet_model_v1.dat
+   share/test_faces_db.json
    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/share
 )
 
