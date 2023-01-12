@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add a launch file pre-configure to always load the test face database
+* Contributors: Séverin Lemaignan
+
 0.3.4 (2023-01-11)
 ------------------
 * add a pre-trained face database, with 2 faces ('John' and 'Jane')
