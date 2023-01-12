@@ -113,8 +113,9 @@ install(FILES
    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/share
 )
 
-install(DIRECTORY test-data
-   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(DIRECTORY
+  launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
 ###########################################################
