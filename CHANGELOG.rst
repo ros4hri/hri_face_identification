@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.5 (2023-01-12)
+------------------
 * add a launch file pre-configure to always load the test face database
 * Contributors: Séverin Lemaignan
 
