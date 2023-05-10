@@ -26,6 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <diagnostic_msgs/DiagnosticStatus.h>
+#include <diagnostic_updater/diagnostic_updater.h>
 #include <hri/face.h>
 #include <hri/hri.h>
 #include <hri_msgs/IdsMatch.h>
@@ -101,6 +103,16 @@ int main(int argc, char** argv) {
 
     hri_listener.onFace(&onFace);
 
+    // add diagnostics
+    diagnostic_updater::Updater diag_updater{nh, ros::NodeHandle("~"),
+                                             " Social perception: Face detection"}; // adding initial space since diagnostic_updater removes it
+    diag_updater.setHardwareID("none");
+    diag_updater.add("Identification",
+        [](diagnostic_updater::DiagnosticStatusWrapper& status){
+            status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
+            status.add("Currently identified faces", tracked_faces.size());
+        });
+
     // ready to go!
     semaphore_pub.publish(std_msgs::Empty());
 
@@ -174,6 +186,7 @@ int main(int argc, char** argv) {
             tracked_faces.erase(id);
         }
 
+        diag_updater.update();
         loop_rate.sleep();
         ros::spinOnce();
     }

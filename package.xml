@@ -19,6 +19,8 @@
   <depend>liblapack-dev</depend>
   <depend>hri</depend>
   <depend>roscpp</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>diagnostic_updater</depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

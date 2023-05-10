@@ -129,6 +129,8 @@ find_package(catkin REQUIRED COMPONENTS
   hri
   roscpp
   rosbag
+  diagnostic_msgs
+  diagnostic_updater
 )
 
 include_directories(
