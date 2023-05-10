@@ -26,6 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <diagnostic_updater/DiagnosticStatusWrapper.h>
+
 #include <dlib/dnn.h>
 #include <dlib/pixel.h>
 
@@ -160,6 +162,10 @@ class FaceRecognition {
      *
      */
     std::map<Id, float> findCandidates(Features descriptor);
+
+    /** perform the module diagnostics filling a DiagnosticStatusWrapper 
+     */
+    void doDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& status);
 
     /** stores the face database, in JSON format.
      */

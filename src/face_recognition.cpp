@@ -31,6 +31,7 @@
 #include <dlib/opencv.h>
 #include <ros/package.h>
 #include <ros/ros.h>
+#include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <time.h>
 
 #include <random>
@@ -239,6 +240,12 @@ void from_json(const json& j, Features& f) {
     f = dlib::mat(features);
 }
 }  // namespace dlib
+
+void FaceRecognition::doDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& status) {
+    status.summary(diagnostic_msgs::DiagnosticStatus::OK, "");
+    status.add("Known faces", person_descriptors.size());
+    status.add("Last recognized face ID", person_descriptors.rbegin()->first);
+}
 
 void FaceRecognition::storeFaceDB(string path) const {
     json j(person_descriptors);

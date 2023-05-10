@@ -26,6 +26,12 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <functional>
+#include <iterator>
+#include <sstream>
+#include <string>
+#include <vector>
+
 #include <diagnostic_msgs/DiagnosticStatus.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <hri/face.h>
@@ -105,13 +111,26 @@ int main(int argc, char** argv) {
 
     // add diagnostics
     diagnostic_updater::Updater diag_updater{nh, ros::NodeHandle("~"),
-                                             " Social perception: Face detection"}; // adding initial space since diagnostic_updater removes it
+                                             " Social perception: Face recognition"}; // adding initial space in 'node_name' string since diagnostic_updater removes the first char
+    diagnostic_updater::CompositeDiagnosticTask diag_composite_task{"Identification"};
     diag_updater.setHardwareID("none");
-    diag_updater.add("Identification",
-        [](diagnostic_updater::DiagnosticStatusWrapper& status){
+    diag_updater.add(diag_composite_task);
+
+    diagnostic_updater::FunctionDiagnosticTask diag_base_task("base_task", 
+        [&face_db_paths](diagnostic_updater::DiagnosticStatusWrapper& status){
             status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
-            status.add("Currently identified faces", tracked_faces.size());
+            std::ostringstream face_db_paths_string{};
+            const char* const delim = ", ";
+            std::copy(face_db_paths.begin(), face_db_paths.end(), 
+                      std::ostream_iterator<std::string>(face_db_paths_string, delim));
+            status.add("Face database paths", face_db_paths_string.str());
+            status.add("Currently detected faces", tracked_faces.size());
         });
+    diag_composite_task.addTask(&diag_base_task);
+
+    diagnostic_updater::FunctionDiagnosticTask diag_face_recognition_task("face_recognition_task",
+        std::bind(&FaceRecognition::doDiagnostics, &fr, std::placeholders::_1));   
+    diag_composite_task.addTask(&diag_face_recognition_task);
 
     // ready to go!
     semaphore_pub.publish(std_msgs::Empty());
