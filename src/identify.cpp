@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 
     // add diagnostics
     diagnostic_updater::Updater diag_updater{nh, ros::NodeHandle("~"),
-                                             " Social perception: Face recognition"}; // adding initial space in 'node_name' string since diagnostic_updater removes the first char
+                                             " Social perception: Face analysis"}; // adding initial space in 'node_name' string since diagnostic_updater removes the first char
     diagnostic_updater::CompositeDiagnosticTask diag_composite_task{"Identification"};
     diag_updater.setHardwareID("none");
     diag_updater.add(diag_composite_task);
@@ -119,6 +119,7 @@ int main(int argc, char** argv) {
     diagnostic_updater::FunctionDiagnosticTask diag_base_task("base_task", 
         [&face_db_paths](diagnostic_updater::DiagnosticStatusWrapper& status){
             status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
+            status.add("Package name", "hri_face_identification");
             std::ostringstream face_db_paths_string{};
             const char* const delim = ", ";
             std::copy(face_db_paths.begin(), face_db_paths.end(), 
