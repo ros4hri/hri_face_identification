@@ -2,6 +2,14 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* improve diagnostic message
+* - address review issues
+  - split diagnostics into the relevant modules
+* add basic diagnostics
+* Contributors: Luka Juricic
+
 0.3.5 (2023-01-12)
 ------------------
 * add a launch file pre-configure to always load the test face database
