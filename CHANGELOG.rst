@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.3.6 (2023-05-12)
+------------------
 * improve diagnostic message
 * - address review issues
   - split diagnostics into the relevant modules
