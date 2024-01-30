@@ -12,194 +12,252 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "hri_face_identification/node_face_identification.hpp"
+
+#include <chrono>
+#include <exception>
 #include <functional>
 #include <iterator>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include <diagnostic_msgs/DiagnosticStatus.h>
-#include <diagnostic_updater/diagnostic_updater.h>
-#include <hri/face.h>
-#include <hri/hri.h>
-#include <hri_msgs/IdsMatch.h>
-#include <ros/ros.h>
-#include <std_msgs/Empty.h>
+#include "ament_index_cpp/get_package_share_directory.hpp"
+#include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "diagnostic_updater/diagnostic_status_wrapper.hpp"
+#include "dlib/serialize.h"
+#include "hri/face.hpp"
+#include "hri/hri.hpp"
+#include "hri_msgs/msg/ids_match.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
+#include "opencv2/highgui.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
 
-#include <opencv2/highgui.hpp>
+#include "hri_face_identification/face_recognition.hpp"
 
-#include "face_recognition.hpp"
+namespace hri_face_identification
+{
+NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & options)
+: rclcpp_lifecycle::LifecycleNode("hri_face_identification", "", options)
+{
+  auto descriptor = rcl_interfaces::msg::ParameterDescriptor{};
 
-using namespace ros;
-using namespace hri;
-using namespace std;
+  auto pkg_path = ament_index_cpp::get_package_share_directory("hri_face_identification");
+  auto default_model_path = pkg_path + "/model/dlib_face_recognition_resnet_model_v1.dat";
+  descriptor.description = "Absolute path to the face identification model";
+  this->declare_parameter("model_path", default_model_path, descriptor);
 
-map<Id, FaceWeakConstPtr> tracked_faces;
+  descriptor.description = "Recognition threshold (max Euclidian distance between embeddings)";
+  this->declare_parameter("match_threshold", 0.5, descriptor);
 
-void onFace(FaceWeakConstPtr face) {
-    auto face_ptr = face.lock();
-    if (face_ptr) {
-        tracked_faces[face_ptr->id()] = face;
-    }
+  descriptor.description = "List of absolute paths to the known faces databases";
+  this->declare_parameter("face_database_paths", std::vector<std::string>(), descriptor);
+
+  descriptor.description = "Whether or not unknown faces will be added to the database";
+  this->declare_parameter("can_learn_new_faces", true, descriptor);
+
+  descriptor.description = "Whether or not faces that are already tracked are re-identified at "
+    "every frame (more accurate, but slower)";
+  this->declare_parameter("identify_all_faces", false, descriptor);
+
+  descriptor.description = "Best-effort face identification rate (Hz)";
+  this->declare_parameter("processing_rate", 10., descriptor);
+
+  RCLCPP_INFO(this->get_logger(), "State: Unconfigured");
 }
 
-int main(int argc, char** argv) {
-    ros::init(argc, argv, "hri_face_identification");
+LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecycle::State &)
+{
+  face_database_paths_param_ = this->get_parameter("face_database_paths");
+  can_learn_new_faces_ = this->get_parameter("can_learn_new_faces").as_bool();
+  identify_all_faces_ = this->get_parameter("identify_all_faces").as_bool();
+  processing_rate_ = this->get_parameter("processing_rate").as_double();
 
-    ros::NodeHandle nh;
-    auto semaphore_pub = nh.advertise<std_msgs::Empty>(
-        "/hri_face_identification/ready", 1, true);
+  try {
+    face_recognition_ = std::make_unique<FaceRecognition>(
+      this->get_parameter("model_path").as_string(),
+      this->get_parameter("match_threshold").as_double());
+  } catch (dlib::serialization_error & e) {
+    RCLCPP_ERROR_STREAM(this->get_logger(), "Could not load the model: " << e.what());
+    return LifecycleCallbackReturn::FAILURE;
+  }
 
-    float match_threshold;
-    ros::param::param<float>("/humans/face_identification/match_threshold",
-                             match_threshold, DEFAULT_MATCH_THRESHOLD);
-
-    bool create_person_if_needed;
-    ros::param::param<bool>("~can_learn_new_faces", create_person_if_needed,
-                            true);
-
-    if (create_person_if_needed) {
-        ROS_INFO(
-            "_can_learn_new_faces:=true (default): I will learn new faces, and "
-            "add them to the face database");
+  for (const auto & path : face_database_paths_param_.as_string_array()) {
+    if (face_recognition_->loadFaceDB(path)) {
+      RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly loaded from " << path);
     } else {
-        ROS_WARN(
-            "_can_learn_new_faces:=false: I will NOT learn new faces; only "
-            "people already in the database will be recognised");
+      RCLCPP_WARN_STREAM(
+        this->get_logger(),
+        "Unable to load face database from " << path << ". Starting with no known faces.");
     }
+  }
 
-    // if false, face identification is only performed when face id changes, ie
-    // a currently tracked face will not be re-identified every frame; if true,
-    // all received faces (on /humans/faces/<id>/aligned) will run through face
-    // identification.
-    bool reidentify_all_faces;
-    ros::param::param<bool>("~identify_all_faces", reidentify_all_faces, false);
-
-    vector<string> face_db_paths;
-    ros::param::param<vector<string>>(
-        "/humans/face_identification/face_database_paths", face_db_paths,
-        {"face_db.json"});
-
-    FaceRecognition fr(match_threshold);
-
-    for (const auto& db : face_db_paths) {
-        fr.loadFaceDB(db);
-    }
-
-    ros::Rate loop_rate(10);
-
-    HRIListener hri_listener;
-
-    auto candidate_matches_pub = nh.advertise<hri_msgs::IdsMatch>(
-        "/humans/candidate_matches", 10, false);
-
-    hri_listener.onFace(&onFace);
-
-    // add diagnostics
-    diagnostic_updater::Updater diag_updater{nh, ros::NodeHandle("~"),
-                                             " Social perception: Face analysis"}; // adding initial space in 'node_name' string since diagnostic_updater removes the first char
-    diagnostic_updater::CompositeDiagnosticTask diag_composite_task{"Identification"};
-    diag_updater.setHardwareID("none");
-    diag_updater.add(diag_composite_task);
-
-    diagnostic_updater::FunctionDiagnosticTask diag_base_task("base_task", 
-        [&face_db_paths](diagnostic_updater::DiagnosticStatusWrapper& status){
-            status.summary(diagnostic_msgs::DiagnosticStatus::OK, "OK");
-            status.add("Package name", "hri_face_identification");
-            std::ostringstream face_db_paths_string{};
-            const char* const delim = ", ";
-            std::copy(face_db_paths.begin(), face_db_paths.end(), 
-                      std::ostream_iterator<std::string>(face_db_paths_string, delim));
-            status.add("Face database paths", face_db_paths_string.str());
-            status.add("Currently detected faces", tracked_faces.size());
-        });
-    diag_composite_task.addTask(&diag_base_task);
-
-    diagnostic_updater::FunctionDiagnosticTask diag_face_recognition_task("face_recognition_task",
-        std::bind(&FaceRecognition::doDiagnostics, &fr, std::placeholders::_1));   
-    diag_composite_task.addTask(&diag_face_recognition_task);
-
-    // ready to go!
-    semaphore_pub.publish(std_msgs::Empty());
-
-    // mapping between a face_id and all the possible recognised person_id
-    // (with their confidence level) for that face.
-    map<Id, map<Id, float>> face_persons_map;
-
-    while (ros::ok()) {
-        vector<Id> faces_to_remove;
-
-        for (const auto& kv : tracked_faces) {
-            auto face_id = kv.first;
-            auto face = kv.second.lock();
-            if (face) {
-                if (face->aligned().empty()) continue;
-
-                ROS_DEBUG_STREAM("Got face " << face_id);
-
-                map<Id, float> results;
-
-                if (!reidentify_all_faces &&
-                    face_persons_map.count(face_id) != 0) {
-                    results = face_persons_map[face_id];
-                } else {
-                    ROS_INFO("Trying to identify the face...");
-                    // note that this might return more than one match! each
-                    // match has an associated confidence level
-                    results = fr.getAllMatches(face->aligned(),
-                                               create_person_if_needed);
-                }
-
-                for (const auto& res : results) {
-                    hri_msgs::IdsMatch match;
-                    match.id1 = res.first;
-                    match.id1_type = hri_msgs::IdsMatch::PERSON;
-                    match.confidence = res.second;
-                    match.id2 = face_id;
-                    match.id2_type = hri_msgs::IdsMatch::FACE;
-
-                    face_persons_map[face_id][res.first] = res.second;
-
-                    candidate_matches_pub.publish(match);
-                }
-            }
-            // face.lock() returns an empty pointer? the face does not exist
-            // anymore!
-            else {
-                faces_to_remove.push_back(face_id);
-
-                // for all the person id previously associated to this face,
-                // publish a 'match' with confidence = 0 to dis-associate them.
-                for (const auto& person : face_persons_map[face_id]) {
-                    ROS_INFO_STREAM(
-                        "Face " << face_id
-                                << " not tracked. Dis-associating from person "
-                                << person.first);
-
-                    hri_msgs::IdsMatch match;
-                    match.id1 = person.first;
-                    match.id1_type = hri_msgs::IdsMatch::PERSON;
-                    match.confidence = 0.0;
-                    match.id2 = face_id;
-                    match.id2_type = hri_msgs::IdsMatch::FACE;
-
-                    candidate_matches_pub.publish(match);
-                }
-            }
-        }
-
-        for (const auto& id : faces_to_remove) {
-            tracked_faces.erase(id);
-        }
-
-        diag_updater.update();
-        loop_rate.sleep();
-        ros::spinOnce();
-    }
-
-    fr.storeFaceDB(face_db_paths[0]);
-    cout << "Bye bye!" << endl;
-
-    return 0;
+  RCLCPP_INFO(this->get_logger(), "State: Inactive");
+  return LifecycleCallbackReturn::SUCCESS;
 }
 
+LifecycleCallbackReturn NodeFaceIdentification::on_cleanup(const rclcpp_lifecycle::State &)
+{
+  internal_cleanup();
+  RCLCPP_INFO(this->get_logger(), "State: Unconfigured");
+  return LifecycleCallbackReturn::SUCCESS;
+}
+
+LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecycle::State &)
+{
+  candidate_matches_pub_ = this->create_publisher<hri_msgs::msg::IdsMatch>(
+    "/humans/candidate_matches", 10);
+  diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
+    "/diagnostics", 1);
+
+  hri_listener_ = hri::HRIListener::create(shared_from_this());
+  hri_listener_->onFace([&](const hri::FacePtr & face) {tracked_faces_[face->id()] = face;});
+
+  process_images_timer_ = rclcpp::create_timer(
+    this, this->get_clock(), std::chrono::nanoseconds(static_cast<int>(1e9 / processing_rate_)),
+    std::bind(&NodeFaceIdentification::processFaces, this));
+  diagnostics_timer_ = rclcpp::create_timer(
+    this, this->get_clock(), std::chrono::seconds(1),
+    std::bind(&NodeFaceIdentification::publishDiagnostics, this));
+
+  RCLCPP_INFO_STREAM(
+    this->get_logger(),
+    this->get_name() << "running. Waiting for faces to be published on /humans/faces/.... "
+      "Results of face identification will be published on /humans/candidate_matches.");
+  RCLCPP_INFO(this->get_logger(), "State: Active");
+  return LifecycleCallbackReturn::SUCCESS;
+}
+
+LifecycleCallbackReturn NodeFaceIdentification::on_deactivate(const rclcpp_lifecycle::State &)
+{
+  internal_deactivate();
+  RCLCPP_INFO(this->get_logger(), "State: Inactive");
+  return LifecycleCallbackReturn::SUCCESS;
+}
+
+LifecycleCallbackReturn NodeFaceIdentification::on_shutdown(const rclcpp_lifecycle::State & state)
+{
+  if (state.id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+    internal_deactivate();
+  }
+  internal_cleanup();
+  RCLCPP_INFO(this->get_logger(), "State: Finalized");
+  return LifecycleCallbackReturn::SUCCESS;
+}
+
+void NodeFaceIdentification::internal_deactivate()
+{
+  hri_listener_.reset();
+  diagnostics_pub_.reset();
+  candidate_matches_pub_.reset();
+  face_persons_map_.clear();
+  tracked_faces_.clear();
+}
+
+void NodeFaceIdentification::internal_cleanup()
+{
+  const auto & path = face_database_paths_param_.as_string_array()[0];
+  face_recognition_->storeFaceDB(path);
+  RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly saved to " << path << std::endl);
+  face_recognition_.reset();
+}
+
+void NodeFaceIdentification::processFaces()
+{
+  std::vector<Id> faces_to_remove;
+
+  for (const auto & [face_id, face] : tracked_faces_) {
+    if (auto face_aligned = face->aligned()) {
+      RCLCPP_DEBUG_STREAM(this->get_logger(), "Got face " << face_id);
+      std::map<Id, float> results;
+
+      if (identify_all_faces_ || !face_persons_map_.count(face_id)) {
+        RCLCPP_INFO(this->get_logger(), "Trying to identify the face...");
+        // note that this might return more than one match!
+        // each match has an associated confidence level
+        bool new_person_created;
+        results = face_recognition_->getAllMatches(
+          *face_aligned, can_learn_new_faces_, new_person_created);
+
+        if (!results.empty()) {
+          face_persons_map_[face_id] = results;
+
+          if (new_person_created) {
+            RCLCPP_INFO_STREAM(
+              this->get_logger(),
+              "New person detected; will be identified as <" << results.begin()->first << ">");
+          } else if (results.size() == 1U) {
+            RCLCPP_INFO_STREAM(
+              this->get_logger(),
+              "Found a match with person " << results.begin()->first << " (confidence: " <<
+                results.begin()->second);
+          } else {
+            RCLCPP_INFO(this->get_logger(), "Found more than one possible match:");
+            for (const auto & result : results) {
+              RCLCPP_INFO_STREAM(
+                this->get_logger(), "  - " << result.first << " (c=" << result.second << ")");
+            }
+          }
+        }
+      }
+
+      for (const auto & [person_id, confidence] : face_persons_map_[face_id]) {
+        hri_msgs::msg::IdsMatch match;
+        match.id1 = person_id;
+        match.id1_type = hri_msgs::msg::IdsMatch::PERSON;
+        match.confidence = confidence;
+        match.id2 = face_id;
+        match.id2_type = hri_msgs::msg::IdsMatch::FACE;
+
+        candidate_matches_pub_->publish(match);
+      }
+    } else if (!face->valid()) {
+      // the face does not exist anymore!
+      faces_to_remove.push_back(face_id);
+
+      // for all the person id previously associated to this face,
+      // publish a 'match' with confidence = 0 to dis-associate them.
+      for (const auto & [person_id, confidence] : face_persons_map_[face_id]) {
+        RCLCPP_INFO_STREAM(
+          this->get_logger(),
+          "Face " << face_id << " not tracked anymore. Dis-associating from person " << person_id);
+
+        hri_msgs::msg::IdsMatch match;
+        match.id1 = person_id;
+        match.id1_type = hri_msgs::msg::IdsMatch::PERSON;
+        match.confidence = 0.0;
+        match.id2 = face_id;
+        match.id2_type = hri_msgs::msg::IdsMatch::FACE;
+
+        candidate_matches_pub_->publish(match);
+      }
+    }
+  }
+
+  for (const auto & id : faces_to_remove) {
+    tracked_faces_.erase(id);
+  }
+}
+
+void NodeFaceIdentification::publishDiagnostics()
+{
+  diagnostic_updater::DiagnosticStatusWrapper status;
+  status.name = "Social perception: Face analysis: Identification";
+  status.hardware_id = "none";
+  status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "OK");
+  status.add("Package name", "hri_face_identification");
+  status.add("Face database paths", face_database_paths_param_.value_to_string());
+  status.add("Currently detected faces", tracked_faces_.size());
+
+  auto face_recognition_diagnostics = face_recognition_->getDiagnostics();
+  status.add("Known faces", face_recognition_diagnostics.known_faces);
+  status.add("Last recognized face ID", face_recognition_diagnostics.last_face_id);
+
+  diagnostic_msgs::msg::DiagnosticArray msg;
+  msg.header.stamp = this->get_clock()->now();
+  msg.status.push_back(status);
+  diagnostics_pub_->publish(msg);
+}
+
+}  // namespace hri_face_identification

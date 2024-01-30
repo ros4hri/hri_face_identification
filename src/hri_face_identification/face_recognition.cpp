@@ -12,252 +12,221 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "face_recognition.hpp"
+#include "hri_face_identification/face_recognition.hpp"
 
-#include <dlib/opencv.h>
-#include <ros/package.h>
-#include <ros/ros.h>
-#include <diagnostic_updater/DiagnosticStatusWrapper.h>
 #include <time.h>
 
+#include <algorithm>
+#include <array>
+#include <map>
 #include <random>
-//#include <opencv2/highgui.hpp>
-#include <opencv2/imgproc.hpp>
+#include <string>
 #include <utility>
 
-#include "json.hpp"
-using json = nlohmann::json;
+#include "dlib/dnn.h"
+#include "dlib/matrix.h"
+#include "dlib/rand.h"
+#include "dlib/opencv.h"
+#include "nlohmann/json.hpp"
+#include "opencv2/imgproc.hpp"
 
-using namespace std;
+namespace hri_face_identification
+{
+// using json = nlohmann::json;
 
-Id generate_id(const int len = 5) {
-    // not a great implementation. Please suggest improvements if you feel like
-    // it!
-    static const array<string, 26> alphanum{
-        {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
-         "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}};
-    string tmp_s;
-    tmp_s.reserve(len);
+Id generateId(const int len = 5)
+{
+  // not a great implementation. Please suggest improvements if you feel like it!
+  static const std::array<std::string, 26> alphanum{
+    {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s",
+      "t", "u", "v", "w", "x", "y", "z"}};
+  std::string tmp_s;
+  tmp_s.reserve(len);
 
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_int_distribution<uint32_t> rnd_dist(0, alphanum.size() - 1);
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_int_distribution<uint32_t> rnd_dist(0, alphanum.size() - 1);
 
-    for (int i = 0; i < len; ++i) {
-        tmp_s += alphanum[rnd_dist(rng)];
-    }
+  for (int i = 0; i < len; ++i) {
+    tmp_s += alphanum[rnd_dist(rng)];
+  }
 
-    return tmp_s;
+  return tmp_s;
 }
 
-FaceRecognition::FaceRecognition(float _match_threshold)
-    : match_threshold(_match_threshold) {
-    ROS_INFO("Loading dlib's ANN face recognition resnet weights...");
-
-    auto pkg_path_ = ros::package::getPath("hri_face_identification");
-
-    // And finally we load the DNN responsible for face recognition.
-    dlib::deserialize(pkg_path_ +
-                      "/share/dlib_face_recognition_resnet_model_v1.dat") >>
-        net;
+FaceRecognition::FaceRecognition(std::string model_path, float match_threshold)
+: match_threshold_(match_threshold)
+{
+  dlib::deserialize(model_path) >> net_;
 }
 
 std::map<Id, float> FaceRecognition::getAllMatches(
-    const cv::Mat& cv_face, bool create_person_if_needed) {
-    // wraps OpenCV image into a dlib image (no data copy)
-    // ATTENTION: face->aligned() should not be modified while
-    // wrapped: we first clone the image to ensure this does not
-    // happen.
-    // cv::Mat aligned_face(face->aligned().clone());
-    cv::Mat resized_face;
-    cv::resize(cv_face, resized_face, {IMG_SIZE, IMG_SIZE}, 0, 0,
-               cv::INTER_LINEAR);
-    // cv::imshow("input face", resized_face);
-    // cv::waitKey(0);
+  const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created)
+{
+  new_person_created = false;
 
-    dlib::matrix<dlib::rgb_pixel> face;
-    dlib::assign_image(
-        face, dlib::cv_image<dlib::bgr_pixel>(cvIplImage(resized_face)));
+  // wraps OpenCV image into a dlib image (no data copy)
+  // ATTENTION: cv_face should not be modified while wrapped.
+  // we first clone the image to ensure this does not happen.
+  // cv::Mat cv_face(original_cv_face.clone());
+  // auto results = face_recognition.getAllMatches(cv_face, create_person_if_needed);
+  cv::Mat resized_face;
+  cv::resize(cv_face, resized_face, {IMG_SIZE, IMG_SIZE}, 0, 0, cv::INTER_LINEAR);
 
-    // calculate the face's descriptor by projecting the image on the RESnet
-    // embedding
-    auto desc = computeFaceDescriptor(face);
+  DLibImage face;
+  dlib::assign_image(face, dlib::cv_image<dlib::bgr_pixel>(cvIplImage(resized_face)));
 
-    // search for known faces that are close to the new face in the embedding
-    // space
-    auto candidates = findCandidates(desc);
+  // calculate the face's descriptor by projecting the image on the RESnet embedding
+  auto desc = computeFaceDescriptor(face);
 
-    if (candidates.empty()) {
-        if (create_person_if_needed) {
-            Id person_id = generate_id();
+  // search for known faces that are close to the new face in the embedding space
+  auto candidates = findCandidates(desc);
 
-            ROS_INFO_STREAM("New person detected; will be identified under id <"
-                            << person_id << ">");
-
-            ROS_INFO_STREAM("Computing face descriptor...");
-            person_descriptors[person_id].push_back(
-                // computeRobustFaceDescriptor(face));
-                computeFaceDescriptor(face));
-            ROS_INFO_STREAM("done!");
-
-            return {{person_id, 1.0}};
-        } else
-            return {};
+  if (candidates.empty()) {
+    if (create_person_if_needed) {
+      // new person detected, we add it to the database with a new ID
+      Id person_id = generateId();
+      person_descriptors_[person_id].push_back(computeFaceDescriptor(face));
+      new_person_created = true;
+      return {{person_id, 1.0}};
     } else {
-        if (candidates.size() == 1) {
-            auto& kv = *candidates.begin();
-            // we've got a match!
-            ROS_INFO_STREAM("Found a match with person "
-                            << kv.first << " (confidence: " << kv.second);
+      return {};
+    }
+  } else {
+    if (candidates.size() == 1) {
+      auto & [id, confidence] = *candidates.begin();
+      // we've got a match!
+      // compute & add new face descriptor for that person if too far from the original one,
+      // but not too bad either (to avoid adding too many false positive)
+      if (confidence < 0.6 && confidence > 0.4) {
+        person_descriptors_[id].push_back(computeFaceDescriptor(face));
+      }
+    }
 
-            // compute & add new face descriptor for that person if too
-            // far from the original one, but not too bad either (to avoid
-            // adding too many false positive)
-            if (kv.second < 0.6 && kv.second > 0.4) {
-                ROS_INFO_STREAM("Current score: "
-                                << kv.second
-                                << ". Adding an additional face descriptor for "
-                                << kv.first);
-                person_descriptors[kv.first].push_back(
-                    computeFaceDescriptor(face));
-            }
+    return candidates;
+  }
+}
 
-        } else {
-            ROS_INFO("Found more than one possible match:");
+std::pair<Id, float> FaceRecognition::getBestMatch(
+  const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created)
+{
+  auto candidates = getAllMatches(cv_face, create_person_if_needed, new_person_created);
 
-            for (const auto& kv : candidates) {
-                ROS_INFO_STREAM("  - " << kv.first << " (c=" << kv.second
-                                       << ")");
-            }
+  if (candidates.empty()) {
+    return std::make_pair(Id(), 0.0);
+  }
+
+  auto best = std::max_element(
+    candidates.begin(), candidates.end(),
+    [](decltype(candidates)::value_type & l, decltype(candidates)::value_type & r) -> bool {
+      return l.second < r.second;
+    });
+
+  return std::make_pair(best->first, best->second);
+}
+
+Features FaceRecognition::computeFaceDescriptor(const DLibImage & face)
+{
+  return net_(face);
+}
+
+Features FaceRecognition::computeRobustFaceDescriptor(const DLibImage & face)
+{
+  return dlib::mean(dlib::mat(net_(jitterImage(face))));
+}
+
+std::vector<DLibImage> FaceRecognition::jitterImage(const DLibImage & img)
+{
+  thread_local dlib::rand rnd;
+
+  std::vector<DLibImage> crops;
+  for (int i = 0; i < 100; ++i) {
+    crops.push_back(dlib::jitter_image(img, rnd));
+  }
+
+  return crops;
+}
+
+std::map<Id, float> FaceRecognition::findCandidates(Features descriptor)
+{
+  std::map<Id, float> scores;
+
+  for (const auto & [person_id, known_descriptors] : person_descriptors_) {
+    for (const auto & known_descriptor : known_descriptors) {
+      auto distance = dlib::length(descriptor - known_descriptor);
+
+      if (distance < match_threshold_) {
+        auto score = computeConfidence(distance);
+
+        if (scores.count(person_id) == 0 || scores[person_id] < score) {
+          // first match or new best match
+          scores[person_id] = score;
         }
-
-        return candidates;
+      }
     }
+  }
+
+  return scores;
 }
 
-pair<Id, float> FaceRecognition::getBestMatch(const cv::Mat& face,
-                                              bool create_person_if_needed) {
-    auto candidates = getAllMatches(face, create_person_if_needed);
-
-    if (candidates.empty()) {
-        return make_pair(Id(), 0.0);
-    }
-
-    auto best = max_element(candidates.begin(), candidates.end(),
-                            [](decltype(candidates)::value_type& l,
-                               decltype(candidates)::value_type& r) -> bool {
-                                return l.second < r.second;
-                            });
-
-    return make_pair(best->first, best->second);
+FaceRecognitionDiagnostics FaceRecognition::getDiagnostics()
+{
+  FaceRecognitionDiagnostics diagnostics{};
+  if (!person_descriptors_.empty()) {
+    diagnostics.known_faces = static_cast<int>(person_descriptors_.size());
+    diagnostics.last_face_id = person_descriptors_.rbegin()->first;
+  }
+  return diagnostics;
 }
 
-Features FaceRecognition::computeFaceDescriptor(
-    const dlib::matrix<dlib::rgb_pixel>& face) {
-    //////////////////////////////////////////
-    // dlib::matrix<dlib::rgb_pixel> face_tmp;
-    // dlib::assign_image(face_tmp, face);
-    // cv::imshow("face", dlib::toMat(face_tmp));
-    // cv::waitKey(0);
-    /////////////////////////////////////////
+void FaceRecognition::storeFaceDB(std::string path) const
+{
+  nlohmann::json j(person_descriptors_);
 
-    return net(face);
+  std::ofstream o(path);
+  o << std::setw(4) << j << std::endl;
 }
 
-Features FaceRecognition::computeRobustFaceDescriptor(
-    const dlib::matrix<dlib::rgb_pixel>& face) {
-    dlib::matrix<float, 0, 1> face_descriptor =
-        mean(mat(net(jitter_image(face))));
+bool FaceRecognition::loadFaceDB(std::string path)
+{
+  std::ifstream i(path);
+  if (i.good()) {
+    nlohmann::json j;
+    i >> j;
 
-    ROS_DEBUG_STREAM(
-        "jittered face descriptor for one face: " << trans(face_descriptor));
-
-    return face_descriptor;
+    auto new_descriptors = j.get<std::map<Id, std::vector<Features>>>();
+    person_descriptors_.insert(new_descriptors.begin(), new_descriptors.end());
+    return true;
+  } else {
+    return false;
+  }
 }
 
-vector<dlib::matrix<dlib::rgb_pixel>> FaceRecognition::jitter_image(
-    const dlib::matrix<dlib::rgb_pixel>& img) {
-    thread_local dlib::rand rnd;
+void FaceRecognition::dropFaceDB() {person_descriptors_.clear();}
 
-    vector<dlib::matrix<dlib::rgb_pixel>> crops;
-    for (int i = 0; i < 100; ++i) crops.push_back(dlib::jitter_image(img, rnd));
+}  // namespace hri_face_identification
 
-    return crops;
+// custom JSON serializers for dlib's vectors
+namespace dlib
+{
+// using json = nlohmann::json;
+
+void to_json(nlohmann::json & j, const hri_face_identification::Features & f)
+{
+  std::vector<float> features;
+
+  for (unsigned int r = 0; r < f.nr(); r += 1) {
+    features.push_back(f(r, 0));
+  }
+
+  j = nlohmann::json(features);
 }
 
-map<Id, float> FaceRecognition::findCandidates(Features descriptor) {
-    map<Id, float> scores;
+void from_json(const nlohmann::json & j, hri_face_identification::Features & f)
+{
+  std::vector<float> features;
+  j.get_to(features);
 
-    for (const auto& kv : person_descriptors) {
-        auto person_id = kv.first;
-        for (const auto& known_descriptor : kv.second) {
-            auto distance = length(descriptor - known_descriptor);
-
-            if (distance < match_threshold) {
-                auto score = computeConfidence(distance);
-
-                if (scores.count(person_id) == 0 or scores[person_id] < score) {
-                    // first match or new best match
-                    scores[person_id] = score;
-                }
-            }
-        }
-    }
-
-    return scores;
-}
-
-// custon JSON serializers for dlib's vectors
-namespace dlib {
-void to_json(json& j, const Features& f) {
-    std::vector<float> features;
-
-    for (unsigned int r = 0; r < f.nr(); r += 1) {
-        features.push_back(f(r, 0));
-    }
-
-    j = json(features);
-}
-
-void from_json(const json& j, Features& f) {
-    std::vector<float> features;
-    j.get_to(features);
-
-    f = dlib::mat(features);
+  f = dlib::mat(features);
 }
 }  // namespace dlib
-
-void FaceRecognition::doDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& status) {
-    status.summary(diagnostic_msgs::DiagnosticStatus::OK, "");
-    status.add("Known faces", person_descriptors.size());
-    status.add("Last recognized face ID", person_descriptors.rbegin()->first);
-}
-
-void FaceRecognition::storeFaceDB(string path) const {
-    json j(person_descriptors);
-
-    std::ofstream o(path);
-    o << std::setw(4) << j << std::endl;
-
-    cout << "Face database correctly saved to " << path << endl;
-}
-
-void FaceRecognition::loadFaceDB(string path) {
-    std::ifstream i(path);
-    if (i.good()) {
-        json j;
-        i >> j;
-
-        auto new_descriptors = j.get<map<Id, std::vector<Features>>>();
-        person_descriptors.insert(new_descriptors.begin(),
-                                  new_descriptors.end());
-
-        ROS_INFO_STREAM("Face database correctly loaded from " << path);
-    } else {
-        ROS_WARN_STREAM("Unable to load face database from "
-                        << path << ". Starting with no known faces.");
-    }
-}
-
-void FaceRecognition::dropFaceDB() { person_descriptors.clear(); }
-

@@ -12,27 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <diagnostic_updater/DiagnosticStatusWrapper.h>
-
-#include <dlib/dnn.h>
-#include <dlib/pixel.h>
+#ifndef HRI_FACE_IDENTIFICATION__FACE_RECOGNITION_HPP_
+#define HRI_FACE_IDENTIFICATION__FACE_RECOGNITION_HPP_
 
 #include <map>
-#include <opencv2/core.hpp>
+#include <string>
+#include <utility>
 #include <vector>
 
+#include "dlib/dnn.h"
+#include "dlib/matrix.h"
+#include "dlib/pixel.h"
+#include "hri/types.hpp"
+#include "opencv2/core.hpp"
+
+namespace hri_face_identification
+{
+using DLibImage = dlib::matrix<dlib::rgb_pixel>;
 using Features = dlib::matrix<float, 0, 1>;
+using Id = hri::ID;
 
-using Id = std::string;
-
-#define DEFAULT_MATCH_THRESHOLD 0.6
-
+/* *INDENT-OFF* : disable uncrustify */
 //////////////////////////////////////////////////////////////////////////////////
 // construct the RESnet deep network with dlib
 // copy-pasted from dlib public domain example dnn_face_recognition_ex.cpp
 
 // note that the dlib model is trained for 150x150px images. As such, the below
-// marcro *can not be changed*
+// macro *can not be changed*
 #define IMG_SIZE 150
 
 template <template <int, template <typename> class, int, typename> class block,
@@ -74,111 +80,118 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
                            dlib::input_rgb_image_sized<IMG_SIZE>>>>>>>>>>>>>;
 
 //////////////////////////////////////////////////////////////////////////////////
+/* *INDENT-ON* : re-enable uncrustify */
 
-class FaceRecognition {
-   public:
-    FaceRecognition(float match_threshold = DEFAULT_MATCH_THRESHOLD);
-
-    /** tries to match a given face to the known faces.
-     *
-     * Returns a map {person_id, confidence} with all possible matches (ie,
-     * face who are below the match threshold).
-     *
-     * Note that the match threshold is the maximum *distance* in the face
-     * embedding space, while the returned *confidence* is a value between 1.0
-     * (fully confident about the identification) and 0.0 (not confident at
-     * all).
-     *
-     * If `create_person_if_needed` is true (default: false), a new person ID is
-     * generated for the face, if the face does not match any known one.
-     */
-    std::map<Id, float> getAllMatches(const cv::Mat& face,
-                                      bool create_person_if_needed = false);
-
-    /** returns the best match between the provided face and the know faces,
-     * with the associated confidence level (between 0.0 and 1.0).
-     *
-     * Effectively runs `processFace` and returns the candidate with the highest
-     * confidence.
-     *
-     *
-     * If `create_person_if_needed` is false (default),
-     * returns an empty ID if not satisfactory match found.
-     * Else, a new person ID will be generated and returned.
-     */
-    std::pair<Id, float> getBestMatch(const cv::Mat& face,
-                                      bool create_person_if_needed = false);
-
-    /** compute a face descriptor by projecting a face on the dlib's trained
-     * facial recognition embedding.
-     */
-    Features computeFaceDescriptor(const dlib::matrix<dlib::rgb_pixel>& face);
-
-    /** compute a more robust face descriptor by first generating jittered
-     * versions of the provided face, and then computing the mean descriptor
-     * on all resulting faces.
-     *
-     * Same API as computeFaceDescriptor, but accordingly much slower.
-     */
-    Features computeRobustFaceDescriptor(
-        const dlib::matrix<dlib::rgb_pixel>& face);
-
-    /** All this function does is make 100 copies of img, all slightly
-     * jittered by being zoomed, rotated, and translated a little bit
-     * differently. They are also randomly mirrored left to right.
-     */
-    std::vector<dlib::matrix<dlib::rgb_pixel>> jitter_image(
-        const dlib::matrix<dlib::rgb_pixel>& img);
-
-    /** returns a map <person_id, score> for all the person whose face
-     * descriptor(s) match (ie, distance < match_threshold) the provided
-     * descriptor.
-     *
-     * The higher the score, the better the match. As such, the best match
-     * can be found with:
-     *
-     * ```cpp
-     * auto scores = findCandidates(descriptor);
-     * auto id = max_element(scores.begin(), scores.end(),
-     *                      [](decltype(scores)::value_type& l,
-     *                         decltype(scores)::value_type& r)
-     *                         -> bool { return l.second < r.second;}
-     *                      )->first;
-     * ```
-     *
-     */
-    std::map<Id, float> findCandidates(Features descriptor);
-
-    /** perform the module diagnostics filling a DiagnosticStatusWrapper 
-     */
-    void doDiagnostics(diagnostic_updater::DiagnosticStatusWrapper& status);
-
-    /** stores the face database, in JSON format.
-     */
-    void storeFaceDB(std::string path) const;
-
-    /** loads a face database in JSON format.
-     */
-    void loadFaceDB(std::string path);
-
-    /** empties the face database. All previously identified persons will have
-     * to be re-identified.
-     *
-     * Note that the on-disk database is not emptied/deleted.
-     * Call FaceRecognition::storeFaceDB after calling
-     * FaceRecognition::dropFaceDB to effectively delete all stored faces.
-     */
-    void dropFaceDB();
-
-   private:
-    float computeConfidence(float distance) {
-        return 1 - distance / match_threshold;
-    }
-
-    anet_type net;
-    std::map<Id, std::vector<Features>> person_descriptors;
-    std::map<Id, Id> face_person_map;
-
-    float match_threshold;
+struct FaceRecognitionDiagnostics
+{
+  int known_faces{0};
+  std::string last_face_id{""};
 };
 
+class FaceRecognition
+{
+public:
+  FaceRecognition(std::string model_path, float match_threshold);
+
+  /** Tries to match a given face image to the known faces.
+   *
+   * Returns a map {person_id, confidence} with all possible matches (ie,
+   * face who are below the match threshold).
+   *
+   * Note that the match threshold is the maximum *distance* in the face
+   * embedding space, while the returned *confidence* is a value between 1.0
+   * (fully confident about the identification) and 0.0 (not confident at
+   * all).
+   *
+   * If `create_person_if_needed` is true, a new person ID is
+   * generated for the face, if the face does not match any known one,
+   * and `new_person_created` is set to true.
+   */
+  std::map<Id, float> getAllMatches(
+    const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created);
+
+  /** Returns the best match between the provided face image and the know faces,
+   * with the associated confidence level (between 0.0 and 1.0).
+   *
+   * Effectively runs `processFace` and returns the candidate with the highest
+   * confidence.
+   *
+   * If `create_person_if_needed` is true, a new person ID is
+   * generated for the face, if the face does not match any known one,
+   * and `new_person_created` is set to true.
+   */
+  std::pair<Id, float> getBestMatch(
+    const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created);
+
+  /** Compute a face descriptor by projecting a face on the dlib's trained
+   * facial recognition embedding.
+   */
+  Features computeFaceDescriptor(const DLibImage & face);
+
+  /** Compute a more robust face descriptor by first generating jittered
+   * versions of the provided face, and then computing the mean descriptor
+   * on all resulting faces.
+   *
+   * Same API as computeFaceDescriptor, but accordingly much slower.
+   */
+  Features computeRobustFaceDescriptor(const DLibImage & face);
+
+  /** All this function does is make 100 copies of face, all slightly
+   * jittered by being zoomed, rotated, and translated a little bit
+   * differently. They are also randomly mirrored left to right.
+   */
+  std::vector<DLibImage> jitterImage(const DLibImage & face);
+
+  /** Returns a map <person_id, score> for all the person whose face
+   * descriptor(s) match (ie, distance < match_threshold) the provided
+   * descriptor.
+   *
+   * The higher the score, the better the match. As such, the best match
+   * can be found with:
+   *
+   * ```cpp
+   * auto scores = findCandidates(descriptor);
+   * auto id = max_element(scores.begin(), scores.end(),
+   *                      [](decltype(scores)::value_type& l,
+   *                         decltype(scores)::value_type& r)
+   *                         -> bool { return l.second < r.second;}
+   *                      )->first;
+   * ```
+   *
+   */
+  std::map<Id, float> findCandidates(Features descriptor);
+
+  /** Get the module diagnostics.
+   */
+  FaceRecognitionDiagnostics getDiagnostics();
+
+  /** Stores the face database, in JSON format.
+   *
+   * Returns true if successfull.
+   */
+  void storeFaceDB(std::string path) const;
+
+  /** Loads a face database in JSON format.
+   */
+  bool loadFaceDB(std::string path);
+
+  /** Empties the face database. All previously identified persons will have
+   * to be re-identified.
+   *
+   * Note that the on-disk database is not emptied/deleted.
+   * Call FaceRecognition::storeFaceDB after calling
+   * FaceRecognition::dropFaceDB to effectively delete all stored faces.
+   */
+  void dropFaceDB();
+
+private:
+  float computeConfidence(float distance) {return 1 - distance / match_threshold_;}
+
+  anet_type net_;
+  std::map<hri::ID, std::vector<Features>> person_descriptors_;
+  float match_threshold_;
+};
+
+}  // namespace hri_face_identification
+
+#endif  // HRI_FACE_IDENTIFICATION__FACE_RECOGNITION_HPP_

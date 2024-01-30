@@ -1,65 +1,75 @@
 hri_face_identification
 =======================
 
-Overview
---------
-
-`hri_face_identification` is a [ROS4HRI](https://wiki.ros.org/hri)-compatible
-face identification node.
-
-It is built on top of [dlib's face recognition
-pipeline](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html).
-
+A [ROS4HRI](https://wiki.ros.org/hri)-compatible face identification package.
+It is built on top of
+[dlib's face recognition pipeline](http://blog.dlib.net/2017/02/high-quality-face-recognition-with-deep.html).
 It performs face recognition at > 100fps on a GTX10xx generation mobile GPU.
 
-Because this node is meant to be used in a broader face processing pipeline, it
-does not perform face detection itself. It expects instead faces to be detected
-and published under `/humans/faces/...` (see below the list of subscribed topics).
+Because this node is meant to be used in a broader face processing pipeline,
+it does not perform face detection itself.
+It expects instead faces to be detected and published under `/humans/faces/...`
+(see below the list of subscribed topics).
 
-ROS API
--------
+## ROS API
 
 ### Parameters
 
-- `/humans/face_identification/match_threshold` (default: 0.6): distance
-  threshold (in the face embedding space) to consider two faces to belong to the
-  same person.
-- `/humans/face_identification/face_database_paths` (default: `[face_db.json]`):
-  a list of full paths to the face databases where known faces will be loaded
-  from. The first one will also be used to permanently store newly detected
-  faces.  Delete these files to 'start from scratch', with no known faces.
-- `~can_learn_new_faces` (default: `true`):
-  whether or not unknown faces will be added to the database. If set to false,
-  only *previously identified* faces are recognised (and the face database will
-  not be modified).
-- `~identify_all_faces` (default: `false`):
-  whether or not already-tracked faces are re-identified. If false, face
-  identification is only performed when face id changes, ie a currently-tracked
-  face will not be re-identified every frame; if true, all received faces (on
-  `/humans/faces/<id>/aligned`) will run through face identification at every
-  frame.
+All parameters are loaded in the lifecycle `configuration` transition.
+
+- `model_path` (default: `<pkg share>/dlib_face_recognition_resnet_model_v1.dat`):
+  Absolute path to the trained dlib resnet face identification model to be loaded.
+- `match_threshold` (default: 0.5):
+  Distance threshold (in the face embedding space) to consider two faces to belong to the same person.
+- `face_database_paths` (default: no database):
+  A list of full paths to the face databases where known faces will be loaded from.
+  The first one will also be used to permanently store newly detected faces.
+  Delete these files to 'start from scratch', with no known faces.
+- `can_learn_new_faces` (default: `true`):
+  Whether or not unknown faces will be added to the database.
+  If set to false, only *previously identified* faces are recognised (and the face database will not be modified).
+- `identify_all_faces` (default: `false`):
+  Whether or not already-tracked faces are re-identified.
+  If false, face identification is only performed when face id changes,
+  i.e. a currently-tracked face will not be re-identified every frame.
+  If true, all received faces (on `/humans/faces/<id>/aligned`) will run through face identification at every frame.
+- `processing_period` (int, default: 100):
+  Best effort period for processing input images in milliseconds.
 
 ### Topics
 
-`hri_face_identification` follows the ROS4HRI conventions (REP-155).
+This package follows the ROS4HRI conventions ([REP-155](https://www.ros.org/reps/rep-0155.html)).
+If the topic message type is not indicated, the ROS4HRI convention is implied.
 
-#### Subscribed topics
+#### Subscribed
 
 - `/humans/faces/tracked`
-  ([hri_msgs/IdsList](http://docs.ros.org/en/api/hri_msgs/html/msg/IdsList.html)):
-  list of the faces currently detected.
 - `/humans/faces/<face_id>/aligned`
-  ([sensor_msgs/Image](http://docs.ros.org/en/api/sensor_msgs/html/msg/Image.html)):
-  the aligned faces to recognise. Note that internally, the faces are always
-  resized to 150x150px before running the recognition.
 
-#### Published topics
+#### Published
 
-- `/humans/candidate_matches`
-  ([hri_msgs/IdsMatch](http://docs.ros.org/en/api/hri_msgs/html/msg/IdsMatch.html)):
-  correspondances between face IDs and (recognised) person IDs (alongside with a
-  confidence level). The `person_id` IDs are randomly generated when a new,
-  unknown, face is detected.
+- `/humans/candidate_matches`:
+  Correspondances between face IDs and (recognised) person IDs (alongside with a confidence level). 
+  The `person_id` IDs are randomly generated when a new, unknown, face is detected.
 
+## Example
 
+For an example of usage, execute in different terminals:
+- USB camera:
+  1. `apt install ros-humble-usb-cam`
+  2. `ros2 run usb_cam usb_cam_node_exe`
+- HRI face detect:
+  1. Either
+    - if you are on a PAL robot `apt install ros-humble-hri-face-detect`
+    - otherwise build and install from [source](https://github.com/ros4hri/hri_face_detect)
+  2. `ros2 launch hri_face_detect face_detect.launch.py`
+- HRI face identification:
+  1. `apt install ros-humble-hri-face-identification`
+  2. `ros2 launch hri_face_identification face_identification.launch.py`
+- RViz with HRI plugin:
+  1. `apt install ros-humble-rviz2`
+  1. `apt install ros-humble-hri-rviz`
+  2. `rviz2`
 
+In RViz, add the 'Humans' plugin to see the detected faces.
+The face IDs should be permanently assigned to the same people.
