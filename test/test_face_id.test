@@ -1,9 +1,0 @@
-<launch>
-
-  <arg name="test_args" default=""/>
-
- <test test-name="hri_face_id" pkg="hri_face_identification"
-  time-limit="1000.0" type="test_hri_face_id" args="$(arg test_args)" />
-
-</launch>
-

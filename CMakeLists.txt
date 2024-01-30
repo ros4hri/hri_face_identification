@@ -36,8 +36,8 @@ ament_auto_add_library(${PROJECT_NAME}_lib
   src/hri_face_identification/face_recognition.cpp
 )
 target_link_libraries(${PROJECT_NAME}_lib
-   dlib::dlib
-   ${BLAS_LIBRARIES}
+  dlib::dlib
+  ${BLAS_LIBRARIES}
 )
 
 ament_auto_add_executable(${PROJECT_NAME}
@@ -49,5 +49,17 @@ install(
   DIRECTORY launch model
   DESTINATION share/${PROJECT_NAME}
 )
+
+# Testing
+if(BUILD_TESTING)
+  ament_auto_find_test_dependencies()
+  ament_lint_auto_find_test_dependencies()
+
+  ament_auto_add_gtest(${PROJECT_NAME}_test
+    test/test_face_recognition.cpp
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test
+    TIMEOUT 120
+  )
+endif()
 
 ament_auto_package()
