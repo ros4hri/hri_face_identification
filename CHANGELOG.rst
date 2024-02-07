@@ -2,6 +2,16 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* port tests to humble
+* extract test images from rosbags
+* port node to humble; remove batch_process.cpp
+* change license to Apache 2.0
+* change folder structure
+* use the correct param name for match threshold
+* Contributors: Luka Juricic, Séverin Lemaignan
+
 0.3.6 (2023-05-12)
 ------------------
 * improve diagnostic message
