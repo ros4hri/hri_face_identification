@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.0.0 (2024-02-07)
+------------------
 * port tests to humble
 * extract test images from rosbags
 * port node to humble; remove batch_process.cpp
