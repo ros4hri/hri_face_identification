@@ -11,8 +11,10 @@
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <build_depend>diagnostic_updater</build_depend>
+  <build_depend>fmt</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>libblas-dev</build_depend>
+  <build_depend>libtclap-dev</build_depend>
   <build_depend>liblapack-dev</build_depend>
   <build_depend>libsqlite3-dev</build_depend>
   <build_depend>lifecycle_msgs</build_depend>
@@ -20,8 +22,10 @@
 
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>diagnostic_updater</exec_depend>
+  <exec_depend>fmt</exec_depend>
   <exec_depend>image_transport</exec_depend>
   <exec_depend>libblas-dev</exec_depend>
+  <exec_depend>libtclap-dev</exec_depend>
   <exec_depend>liblapack-dev</exec_depend>
   <exec_depend>libsqlite3-dev</exec_depend>
   <exec_depend>lifecycle_msgs</exec_depend>

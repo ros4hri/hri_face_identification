@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <map>
 #include <random>
 #include <string>
@@ -32,7 +33,6 @@
 
 namespace hri_face_identification
 {
-// using json = nlohmann::json;
 
 Id generateId(const int len = 5)
 {

@@ -52,7 +52,9 @@ If the topic message type is not indicated, the ROS4HRI convention is implied.
   Correspondances between face IDs and (recognised) person IDs (alongside with a confidence level). 
   The `person_id` IDs are randomly generated when a new, unknown, face is detected.
 
-## Example
+## Examples
+
+### Identify faces
 
 For an example of usage, execute in different terminals:
 - USB camera:
@@ -61,7 +63,7 @@ For an example of usage, execute in different terminals:
 - HRI face detect:
   1. Either
     - if you are on a PAL robot `apt install ros-humble-hri-face-detect`
-    - otherwise build and install from [source](https://github.com/ros4hri/hri_face_detect)
+    - otherwise build and install from [source](https://github.com/ros4hri/hri_face_detect).
   2. `ros2 launch hri_face_detect face_detect.launch.py`
 - HRI face identification:
   1. `apt install ros-humble-hri-face-identification`
@@ -73,3 +75,29 @@ For an example of usage, execute in different terminals:
 
 In RViz, add the 'Humans' plugin to see the detected faces.
 The face IDs should be permanently assigned to the same people.
+
+### Offline face database creation
+
+Execute in different terminals:
+- USB camera:
+  1. `apt install ros-humble-usb-cam`
+  2. `ros2 run usb_cam usb_cam_node_exe`
+- HRI face detect:
+  1. Either:
+    - if you are on a PAL robot `apt install ros-humble-hri-face-detect`.
+    - otherwise build and install from [source](https://github.com/ros4hri/hri_face_detect).
+  2. `ros2 launch hri_face_detect face_detect.launch.py`
+- HRI face identification recorder:
+  1. `apt install ros-humble-hri-face-identification`
+  2. For each person:
+    - `ros2 run hri_face_identification db_record -n <person_name>` (use `--help` for additional arguments).
+    - A camera image window should appear; selecting it use SPACE to start/stop recording a scene, ESC to terminate.
+    - Record multiple scenes, each with at least 30 images and in a different lightning condition.
+  3. The images are saved by default in `/tmp/face_dataset`
+
+After the recordings are completed, the processed faces database is obtained executing
+`ros2 run hri_face_identification db_process` (use `--help` for additional arguments).
+By default it will read the persons facs images database from `/tmp/face_dataset` and
+output a `/tmp/face_dataset/face_db.json` containing the anonymized face embeddings.
+This file can be passed to the `hri_face_identification` node, along with others, through the `face_database_paths` parameter.
+Check the terminal output to see the anonymous id mappings.

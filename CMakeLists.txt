@@ -40,9 +40,12 @@ target_link_libraries(${PROJECT_NAME}_lib
   ${BLAS_LIBRARIES}
 )
 
-ament_auto_add_executable(${PROJECT_NAME}
-  src/main.cpp
-)
+ament_auto_add_executable(${PROJECT_NAME} src/main.cpp)
+
+ament_auto_add_executable(db_record src/db_record.cpp)
+target_link_libraries(db_record fmt::fmt)
+
+ament_auto_add_executable(db_process src/db_process.cpp)
 
 # Additional install
 install(
