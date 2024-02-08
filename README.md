@@ -21,7 +21,7 @@ All parameters are loaded in the lifecycle `configuration` transition.
   Absolute path to the trained dlib resnet face identification model to be loaded.
 - `match_threshold` (default: 0.5):
   Distance threshold (in the face embedding space) to consider two faces to belong to the same person.
-- `face_database_paths` (default: no database):
+- `face_database_paths` (default: [see Resources](#resources)):
   A list of full paths to the face databases where known faces will be loaded from.
   The first one will also be used to permanently store newly detected faces.
   Delete these files to 'start from scratch', with no known faces.
@@ -51,6 +51,17 @@ If the topic message type is not indicated, the ROS4HRI convention is implied.
 - `/humans/candidate_matches`:
   Correspondances between face IDs and (recognised) person IDs (alongside with a confidence level). 
   The `person_id` IDs are randomly generated when a new, unknown, face is detected.
+
+### Resources
+
+By default are loaded all the face databases registered under the resource type `face_databases`.
+[resource](https://github.com/ament/ament_cmake/blob/master/ament_cmake_core/doc/resource_index.md).
+It expects [marker files](https://github.com/ament/ament_cmake/blob/master/ament_cmake_core/doc/resource_index.md#marker-files),
+containing each a single file database path, relative to its package share folder install path.
+The faces database itself must be installed in such location.
+
+The `hri_face_identification` installs in such a way a database for itself:
+see the `CMakeLists.txt` how it is installed.
 
 ## Examples
 

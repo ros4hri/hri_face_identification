@@ -48,10 +48,13 @@ target_link_libraries(db_record fmt::fmt)
 ament_auto_add_executable(db_process src/db_process.cpp)
 
 # Additional install
+# this will install also the faces database model/data/faces_db.json
 install(
   DIRECTORY launch model
   DESTINATION share/${PROJECT_NAME}
 )
+# this will register faces database resource
+ament_index_register_resource("faces_database" CONTENT model/data/faces_db.json)
 
 # Testing
 if(BUILD_TESTING)

@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <exception>
+#include <filesystem>
 #include <functional>
 #include <iterator>
 #include <sstream>
@@ -23,6 +24,8 @@
 #include <vector>
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
+#include "ament_index_cpp/get_resource.hpp"
+#include "ament_index_cpp/get_resources.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_updater/diagnostic_status_wrapper.hpp"
 #include "dlib/serialize.h"
@@ -51,8 +54,18 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   descriptor.description = "Recognition threshold (max Euclidian distance between embeddings)";
   this->declare_parameter("match_threshold", 0.5, descriptor);
 
+  std::vector<std::string> default_face_database_paths;
+  auto faces_db_resources = ament_index_cpp::get_resources("faces_database");
+  for (const auto & [pkg, share_path] : faces_db_resources) {
+    std::string db_file_name;
+    if (ament_index_cpp::get_resource("faces_database", pkg, db_file_name)) {
+      auto db_path =
+        std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
+      default_face_database_paths.emplace_back(db_path.string());
+    }
+  }
   descriptor.description = "List of absolute paths to the known faces databases";
-  this->declare_parameter("face_database_paths", std::vector<std::string>(), descriptor);
+  this->declare_parameter("face_database_paths", default_face_database_paths, descriptor);
 
   descriptor.description = "Whether or not unknown faces will be added to the database";
   this->declare_parameter("can_learn_new_faces", true, descriptor);
