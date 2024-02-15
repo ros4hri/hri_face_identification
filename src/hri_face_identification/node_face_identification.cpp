@@ -80,6 +80,11 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   RCLCPP_INFO(this->get_logger(), "State: Unconfigured");
 }
 
+NodeFaceIdentification::~NodeFaceIdentification()
+{
+  on_shutdown(this->get_current_state());
+}
+
 LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecycle::State &)
 {
   face_database_paths_param_ = this->get_parameter("face_database_paths");

@@ -38,6 +38,7 @@ class NodeFaceIdentification : public rclcpp_lifecycle::LifecycleNode
 {
 public:
   explicit NodeFaceIdentification(const rclcpp::NodeOptions & options = rclcpp::NodeOptions());
+  ~NodeFaceIdentification();
 
   LifecycleCallbackReturn on_configure(const rclcpp_lifecycle::State &);
   LifecycleCallbackReturn on_cleanup(const rclcpp_lifecycle::State &);
