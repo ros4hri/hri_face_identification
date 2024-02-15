@@ -18,12 +18,14 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "hri/face.hpp"
 #include "hri/hri.hpp"
 #include "hri/types.hpp"
 #include "hri_msgs/msg/ids_match.hpp"
+#include "privacy_msgs/msg/personal_data.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -56,11 +58,13 @@ private:
   std::shared_ptr<hri::HRIListener> hri_listener_;
   rclcpp::Parameter face_database_paths_param_;
   std::string persistent_face_database_path_;
+  std::vector<std::string> loaded_face_database_paths_;
   bool can_learn_new_faces_;
   bool identify_all_faces_;
   double processing_rate_;
   rclcpp::Publisher<hri_msgs::msg::IdsMatch>::SharedPtr candidate_matches_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
+  rclcpp::Publisher<privacy_msgs::msg::PersonalData>::SharedPtr privacy_pub_;
   std::shared_ptr<rclcpp::TimerBase> diagnostics_timer_;
   std::shared_ptr<rclcpp::TimerBase> process_images_timer_;
   std::map<Id, hri::FacePtr> tracked_faces_;

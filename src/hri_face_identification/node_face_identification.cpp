@@ -66,7 +66,7 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
       auto db_path =
         std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
       if (std::filesystem::is_regular_file(db_path)) {
-        default_face_database_paths.emplace_back(db_path.string());
+        default_face_database_paths.push_back(db_path.string());
       } else {
         RCLCPP_WARN_STREAM(
           this->get_logger(), "Unable to find face database from " << db_path << ". Skipping it.");
@@ -120,6 +120,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
   }
   for (const auto & path : face_databases) {
     if (face_recognition_->loadFaceDB(path)) {
+      loaded_face_database_paths_.push_back(path);
       RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly loaded from " << path);
     } else {
       RCLCPP_WARN_STREAM(
@@ -144,6 +145,10 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
     "/humans/candidate_matches", 10);
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "/diagnostics", 1);
+  privacy_pub_ = this->create_publisher<privacy_msgs::msg::PersonalData>(
+    "/data_management",
+    rclcpp::SystemDefaultsQoS(
+      rclcpp::KeepLast(loaded_face_database_paths_.size())).transient_local().reliable());
 
   hri_listener_ = hri::HRIListener::create(shared_from_this());
   hri_listener_->onFace([&](const hri::FacePtr & face) {tracked_faces_[face->id()] = face;});
@@ -154,6 +159,15 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
   diagnostics_timer_ = rclcpp::create_timer(
     this, this->get_clock(), std::chrono::seconds(1),
     std::bind(&NodeFaceIdentification::publishDiagnostics, this));
+
+  privacy_msgs::msg::PersonalData personal_data_msg;
+  personal_data_msg.data_source_node = this->get_name();
+  personal_data_msg.user_friendly_source_name = "Facial identification";
+  personal_data_msg.data_purpose = "Facial identification";
+  for (const auto & path : loaded_face_database_paths_) {
+    personal_data_msg.path = path;
+    privacy_pub_->publish(personal_data_msg);
+  }
 
   RCLCPP_INFO_STREAM(
     this->get_logger(),
