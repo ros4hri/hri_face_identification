@@ -54,27 +54,8 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   descriptor.description = "Recognition threshold (max Euclidian distance between embeddings)";
   this->declare_parameter("match_threshold", 0.5, descriptor);
 
-  std::vector<std::string> default_face_database_paths;
-  auto faces_db_resources = ament_index_cpp::get_resources("faces_database");
-  for (const auto & [pkg, share_path] : faces_db_resources) {
-    std::string db_files;
-    ament_index_cpp::get_resource("faces_database", pkg, db_files);
-    std::istringstream stream_db_files(db_files);
-    while (!stream_db_files.eof()) {
-      std::string db_file_name;
-      std::getline(stream_db_files, db_file_name);
-      auto db_path =
-        std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
-      if (std::filesystem::is_regular_file(db_path)) {
-        default_face_database_paths.push_back(db_path.string());
-      } else {
-        RCLCPP_WARN_STREAM(
-          this->get_logger(), "Unable to find face database from " << db_path << ". Skipping it.");
-      }
-    }
-  }
-  descriptor.description = "List of absolute paths to the known faces databases";
-  this->declare_parameter("face_database_paths", default_face_database_paths, descriptor);
+  descriptor.description = "List of absolute paths to the additional faces databases";
+  this->declare_parameter("additional_face_database_paths_", "", descriptor);
 
   descriptor.description = "Path to the faces database where all known faces are stored";
   this->declare_parameter("persistent_face_database_path", "/tmp/faces_db", descriptor);
@@ -82,8 +63,9 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   descriptor.description = "Whether or not unknown faces will be added to the database";
   this->declare_parameter("can_learn_new_faces", true, descriptor);
 
-  descriptor.description = "Whether or not faces that are already tracked are re-identified at "
-    "every frame (more accurate, but slower)";
+  descriptor.description =
+    "Whether or not faces that are already tracked are re-identified at every frame "
+    "(more accurate, but slower)";
   this->declare_parameter("identify_all_faces", false, descriptor);
 
   descriptor.description = "Best-effort face identification rate (Hz)";
@@ -99,7 +81,8 @@ NodeFaceIdentification::~NodeFaceIdentification()
 
 LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecycle::State &)
 {
-  face_database_paths_param_ = this->get_parameter("face_database_paths");
+  auto additional_face_database_paths =
+    this->get_parameter("additional_face_database_paths").as_string_array();
   persistent_face_database_path_ = this->get_parameter("persistent_face_database_path").as_string();
   can_learn_new_faces_ = this->get_parameter("can_learn_new_faces").as_bool();
   identify_all_faces_ = this->get_parameter("identify_all_faces").as_bool();
@@ -114,17 +97,32 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
     return LifecycleCallbackReturn::FAILURE;
   }
 
-  auto face_databases = face_database_paths_param_.as_string_array();
-  if (!persistent_face_database_path_.empty()) {
-    face_databases.push_back(persistent_face_database_path_);
+  std::vector<std::string> face_database_paths;
+  for (const auto & [pkg, share_path] : ament_index_cpp::get_resources("faces_database")) {
+    std::string db_files;
+    ament_index_cpp::get_resource("faces_database", pkg, db_files);
+    std::istringstream stream_db_files(db_files);
+    while (!stream_db_files.eof()) {
+      std::string db_file_name;
+      std::getline(stream_db_files, db_file_name);
+      auto db_path =
+        std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
+      face_database_paths.push_back(db_path.string());
+    }
   }
-  for (const auto & path : face_databases) {
-    if (face_recognition_->loadFaceDB(path)) {
+  for (const auto & path : additional_face_database_paths) {
+    face_database_paths.push_back(path);
+  }
+  if (!persistent_face_database_path_.empty()) {
+    face_database_paths.push_back(persistent_face_database_path_);
+  }
+
+  for (const auto & path : face_database_paths) {
+    if (std::filesystem::is_regular_file(path) && face_recognition_->loadFaceDB(path)) {
       loaded_face_database_paths_.push_back(path);
       RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly loaded from " << path);
     } else {
-      RCLCPP_WARN_STREAM(
-        this->get_logger(), "Unable to load face database from " << path);
+      RCLCPP_WARN_STREAM(this->get_logger(), "Unable to load face database from " << path);
     }
   }
 
@@ -163,7 +161,10 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
   privacy_msgs::msg::PersonalData personal_data_msg;
   personal_data_msg.data_source_node = this->get_name();
   personal_data_msg.user_friendly_source_name = "Facial identification";
-  personal_data_msg.data_purpose = "Facial identification";
+  personal_data_msg.data_purpose =
+    "Required for the robot to recognise previously met people. If deleted, the robot will work "
+    "normally; however, it will not be able to recognise previously seen people, and will "
+    "believe they are new persons.";
   for (const auto & path : loaded_face_database_paths_) {
     personal_data_msg.path = path;
     privacy_pub_->publish(personal_data_msg);
@@ -301,7 +302,11 @@ void NodeFaceIdentification::publishDiagnostics()
   status.hardware_id = "none";
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "OK");
   status.add("Package name", "hri_face_identification");
-  status.add("Face database paths", face_database_paths_param_.value_to_string());
+  std::stringstream ss;
+  std::copy(
+    loaded_face_database_paths_.begin(), loaded_face_database_paths_.end(),
+    std::ostream_iterator<std::string>(ss, "\n"));
+  status.add("Face database paths", ss.str());
   status.add("Persistency face database path", persistent_face_database_path_);
   status.add("Currently detected faces", tracked_faces_.size());
 
