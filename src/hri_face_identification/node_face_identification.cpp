@@ -57,15 +57,27 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   std::vector<std::string> default_face_database_paths;
   auto faces_db_resources = ament_index_cpp::get_resources("faces_database");
   for (const auto & [pkg, share_path] : faces_db_resources) {
-    std::string db_file_name;
-    if (ament_index_cpp::get_resource("faces_database", pkg, db_file_name)) {
+    std::string db_files;
+    ament_index_cpp::get_resource("faces_database", pkg, db_files);
+    std::istringstream stream_db_files(db_files);
+    while (!stream_db_files.eof()) {
+      std::string db_file_name;
+      std::getline(stream_db_files, db_file_name);
       auto db_path =
         std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
-      default_face_database_paths.emplace_back(db_path.string());
+      if (std::filesystem::is_regular_file(db_path)) {
+        default_face_database_paths.emplace_back(db_path.string());
+      } else {
+        RCLCPP_WARN_STREAM(
+          this->get_logger(), "Unable to find face database from " << db_path << ". Skipping it.");
+      }
     }
   }
   descriptor.description = "List of absolute paths to the known faces databases";
   this->declare_parameter("face_database_paths", default_face_database_paths, descriptor);
+
+  descriptor.description = "Path to the faces database where all known faces are stored";
+  this->declare_parameter("persistent_face_database_path", "/tmp/faces_db", descriptor);
 
   descriptor.description = "Whether or not unknown faces will be added to the database";
   this->declare_parameter("can_learn_new_faces", true, descriptor);
@@ -88,6 +100,7 @@ NodeFaceIdentification::~NodeFaceIdentification()
 LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecycle::State &)
 {
   face_database_paths_param_ = this->get_parameter("face_database_paths");
+  persistent_face_database_path_ = this->get_parameter("persistent_face_database_path").as_string();
   can_learn_new_faces_ = this->get_parameter("can_learn_new_faces").as_bool();
   identify_all_faces_ = this->get_parameter("identify_all_faces").as_bool();
   processing_rate_ = this->get_parameter("processing_rate").as_double();
@@ -101,13 +114,16 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
     return LifecycleCallbackReturn::FAILURE;
   }
 
-  for (const auto & path : face_database_paths_param_.as_string_array()) {
+  auto face_databases = face_database_paths_param_.as_string_array();
+  if (!persistent_face_database_path_.empty()) {
+    face_databases.push_back(persistent_face_database_path_);
+  }
+  for (const auto & path : face_databases) {
     if (face_recognition_->loadFaceDB(path)) {
       RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly loaded from " << path);
     } else {
       RCLCPP_WARN_STREAM(
-        this->get_logger(),
-        "Unable to load face database from " << path << ". Starting with no known faces.");
+        this->get_logger(), "Unable to load face database from " << path);
     }
   }
 
@@ -141,7 +157,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
 
   RCLCPP_INFO_STREAM(
     this->get_logger(),
-    this->get_name() << "running. Waiting for faces to be published on /humans/faces/.... "
+    this->get_name() << " running. Waiting for faces to be published on /humans/faces/.... "
       "Results of face identification will be published on /humans/candidate_matches.");
   RCLCPP_INFO(this->get_logger(), "State: Active");
   return LifecycleCallbackReturn::SUCCESS;
@@ -175,9 +191,15 @@ void NodeFaceIdentification::internal_deactivate()
 
 void NodeFaceIdentification::internal_cleanup()
 {
-  const auto & path = face_database_paths_param_.as_string_array()[0];
-  face_recognition_->storeFaceDB(path);
-  RCLCPP_INFO_STREAM(this->get_logger(), "Face database correctly saved to " << path << std::endl);
+  if (persistent_face_database_path_.empty()) {
+    RCLCPP_INFO(
+      this->get_logger(),
+      "Face database will be discarded since 'persistent_face_database_path' parameter is empty");
+  } else {
+    face_recognition_->storeFaceDB(persistent_face_database_path_);
+    RCLCPP_INFO_STREAM(
+      this->get_logger(), "Face database saved to " << persistent_face_database_path_ << std::endl);
+  }
   face_recognition_.reset();
 }
 
@@ -266,6 +288,7 @@ void NodeFaceIdentification::publishDiagnostics()
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "OK");
   status.add("Package name", "hri_face_identification");
   status.add("Face database paths", face_database_paths_param_.value_to_string());
+  status.add("Persistency face database path", persistent_face_database_path_);
   status.add("Currently detected faces", tracked_faces_.size());
 
   auto face_recognition_diagnostics = face_recognition_->getDiagnostics();

@@ -55,6 +55,7 @@ private:
   std::unique_ptr<FaceRecognition> face_recognition_;
   std::shared_ptr<hri::HRIListener> hri_listener_;
   rclcpp::Parameter face_database_paths_param_;
+  std::string persistent_face_database_path_;
   bool can_learn_new_faces_;
   bool identify_all_faces_;
   double processing_rate_;

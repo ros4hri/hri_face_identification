@@ -23,8 +23,10 @@ All parameters are loaded in the lifecycle `configuration` transition.
   Distance threshold (in the face embedding space) to consider two faces to belong to the same person.
 - `face_database_paths` (default: [see Resources](#resources)):
   A list of full paths to the face databases where known faces will be loaded from.
-  The first one will also be used to permanently store newly detected faces.
-  Delete these files to 'start from scratch', with no known faces.
+- `persistent_face_database_path` (default: `/tmp/faces_db`):
+  Path where the collection of all known faces, including the ones discovered online, is stored at node shutdown.
+  It gets loaded at startup in addition to the `face_database_paths`.
+  If empty, no database is saved and the online discovered faces are lost.
 - `can_learn_new_faces` (default: `true`):
   Whether or not unknown faces will be added to the database.
   If set to false, only *previously identified* faces are recognised (and the face database will not be modified).
@@ -57,7 +59,7 @@ If the topic message type is not indicated, the ROS4HRI convention is implied.
 By default are loaded all the face databases registered under the resource type `face_databases`.
 [resource](https://github.com/ament/ament_cmake/blob/master/ament_cmake_core/doc/resource_index.md).
 It expects [marker files](https://github.com/ament/ament_cmake/blob/master/ament_cmake_core/doc/resource_index.md#marker-files),
-containing each a single file database path, relative to its package share folder install path.
+containing the file database paths, separated in different lines, relative to its package share folder install path.
 The faces database itself must be installed in such location.
 
 The `hri_face_identification` installs in such a way a database for itself:
