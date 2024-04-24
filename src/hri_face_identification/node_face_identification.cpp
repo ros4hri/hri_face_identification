@@ -143,7 +143,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
     "/humans/candidate_matches", 10);
   diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "/diagnostics", 1);
-  privacy_pub_ = this->create_publisher<privacy_msgs::msg::PersonalData>(
+  privacy_pub_ = this->create_publisher<privacy_msgs::msg::PersonalDataProcessor>(
     "/data_management",
     rclcpp::SystemDefaultsQoS(
       rclcpp::KeepLast(loaded_face_database_paths_.size())).transient_local().reliable());
@@ -158,7 +158,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_activate(const rclcpp_lifecyc
     this, this->get_clock(), std::chrono::seconds(1),
     std::bind(&NodeFaceIdentification::publishDiagnostics, this));
 
-  privacy_msgs::msg::PersonalData personal_data_msg;
+  privacy_msgs::msg::PersonalDataProcessor personal_data_msg;
   personal_data_msg.data_source_node = this->get_name();
   personal_data_msg.user_friendly_source_name = "Facial identification";
   personal_data_msg.data_purpose =
