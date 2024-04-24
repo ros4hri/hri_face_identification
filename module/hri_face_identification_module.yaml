@@ -1,0 +1,2 @@
+hri_face_identification:
+  launch: "hri_face_identification face_identification.launch.py"

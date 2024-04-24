@@ -56,6 +56,12 @@ install(
 # this will register faces database resource
 ament_index_register_resource("faces_database" CONTENT model/data/faces_db.json)
 
+if(pal_module_cmake_FOUND)
+  pal_register_modules(
+    module/hri_face_identification_module.yaml
+  )
+endif()
+
 # Testing
 if(BUILD_TESTING)
   ament_auto_find_test_dependencies()
