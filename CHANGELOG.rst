@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.1.0 (2024-04-25)
+------------------
 * add pal module
 * update privacy msg class name
 * faces databases from parameters are appended to the resource ones
