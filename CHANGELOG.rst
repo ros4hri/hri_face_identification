@@ -2,6 +2,19 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* add pal module
+* update privacy msg class name
+* faces databases from parameters are appended to the resource ones
+* send data management notice messages
+* rework face databases api
+* fix shutdown execution on SIGINT
+* load default face database from the resource index
+* port the database creation helper executables
+* remove unknown face from db
+* Contributors: Luka Juricic
+
 2.0.0 (2024-02-07)
 ------------------
 * port tests to humble
