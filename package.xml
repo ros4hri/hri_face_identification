@@ -25,6 +25,7 @@
   <exec_depend>diagnostic_updater</exec_depend>
   <exec_depend>fmt</exec_depend>
   <exec_depend>image_transport</exec_depend>
+  <exec_depend>launch_pal</exec_depend>
   <exec_depend>libblas-dev</exec_depend>
   <exec_depend>libtclap-dev</exec_depend>
   <exec_depend>liblapack-dev</exec_depend>

@@ -36,8 +36,8 @@ All parameters are loaded in the lifecycle `configuration` transition.
   If false, face identification is only performed when face id changes,
   i.e. a currently-tracked face will not be re-identified every frame.
   If true, all received faces (on `/humans/faces/<id>/aligned`) will run through face identification at every frame.
-- `processing_period` (int, default: 100):
-  Best effort period for processing input images in milliseconds.
+- `processing_rate` (double, default: 10.0):
+  Best effort rate for processing input images in milliseconds.
 
 ### Topics
 

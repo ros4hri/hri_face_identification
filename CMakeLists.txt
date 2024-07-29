@@ -50,11 +50,13 @@ ament_auto_add_executable(db_process src/db_process.cpp)
 # Additional install
 # this will install also the faces database model/data/faces_db.json
 install(
-  DIRECTORY launch model
+  DIRECTORY launch model config
   DESTINATION share/${PROJECT_NAME}
 )
 # this will register faces database resource
 ament_index_register_resource("faces_database" CONTENT model/data/faces_db.json)
+# register the default configuration file
+ament_index_register_resource("pal_configuration.hri_face_identification" CONTENT config/00-defaults.yml)
 
 if(pal_module_cmake_FOUND)
   pal_register_modules(

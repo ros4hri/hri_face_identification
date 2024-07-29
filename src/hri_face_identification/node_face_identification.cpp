@@ -46,16 +46,15 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
 {
   auto descriptor = rcl_interfaces::msg::ParameterDescriptor{};
 
-  auto pkg_path = ament_index_cpp::get_package_share_directory("hri_face_identification");
-  auto default_model_path = pkg_path + "/model/dlib_face_recognition_resnet_model_v1.dat";
   descriptor.description = "Absolute path to the face identification model";
-  this->declare_parameter("model_path", default_model_path, descriptor);
+  this->declare_parameter("model_path", "", descriptor);
 
   descriptor.description = "Recognition threshold (max Euclidian distance between embeddings)";
   this->declare_parameter("match_threshold", 0.5, descriptor);
 
   descriptor.description = "List of absolute paths to the additional faces databases";
-  this->declare_parameter("additional_face_database_paths_", "", descriptor);
+  this->declare_parameter(
+    "additional_face_database_paths", std::vector<std::string>({""}), descriptor);
 
   descriptor.description = "Path to the faces database where all known faces are stored";
   this->declare_parameter("persistent_face_database_path", "/tmp/faces_db", descriptor);
@@ -89,8 +88,14 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
   processing_rate_ = this->get_parameter("processing_rate").as_double();
 
   try {
+    auto model_path = this->get_parameter("model_path").as_string();
+    if (model_path.empty()) {
+      auto pkg_path = ament_index_cpp::get_package_share_directory("hri_face_identification");
+      model_path = pkg_path + "/model/dlib_face_recognition_resnet_model_v1.dat";
+    }
+
     face_recognition_ = std::make_unique<FaceRecognition>(
-      this->get_parameter("model_path").as_string(),
+      model_path,
       this->get_parameter("match_threshold").as_double());
   } catch (dlib::serialization_error & e) {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Could not load the model: " << e.what());
