@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Paps7 conformant
+* Contributors: lorenzoferrini
+
 2.1.0 (2024-04-25)
 ------------------
 * add pal module
