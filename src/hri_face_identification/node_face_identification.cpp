@@ -303,10 +303,10 @@ void NodeFaceIdentification::processFaces()
 void NodeFaceIdentification::publishDiagnostics()
 {
   diagnostic_updater::DiagnosticStatusWrapper status;
-  status.name = "Social perception: Face analysis: Identification";
+  status.name = "/social_perception/faces/hri_face_identification";
   status.hardware_id = "none";
   status.summary(diagnostic_msgs::msg::DiagnosticStatus::OK, "OK");
-  status.add("Package name", "hri_face_identification");
+  status.add("Module name", "hri_face_identification");
   std::stringstream ss;
   std::copy(
     loaded_face_database_paths_.begin(), loaded_face_database_paths_.end(),
