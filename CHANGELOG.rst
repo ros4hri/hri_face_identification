@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* rename diagnostics msg to match documentation (and diagnostic_aggregator) categories
+* Contributors: Séverin Lemaignan
+
 2.2.0 (2024-07-29)
 ------------------
 * Paps7 conformant
