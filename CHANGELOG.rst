@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.2.1 (2024-08-19)
+------------------
 * rename diagnostics msg to match documentation (and diagnostic_aggregator) categories
 * Contributors: Séverin Lemaignan
 
