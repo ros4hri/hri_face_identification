@@ -1,7 +1,7 @@
 /hri_face_identification:
   ros__parameters:
     model_path: ""
-    match_threshold: 0.5
+    match_distance_threshold: 0.5
     additional_face_database_paths: [""]
     persistent_face_database_path: /tmp/faces_db
     can_learn_new_faces: True

@@ -49,8 +49,9 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   descriptor.description = "Absolute path to the face identification model";
   this->declare_parameter("model_path", "", descriptor);
 
-  descriptor.description = "Recognition threshold (max Euclidian distance between embeddings)";
-  this->declare_parameter("match_threshold", 0.5, descriptor);
+  descriptor.description =
+    "Recognition threshold (max Euclidian distance between faces in embedding space)";
+  this->declare_parameter("match_distance_threshold", 0.5, descriptor);
 
   descriptor.description = "List of absolute paths to the additional faces databases";
   this->declare_parameter(
@@ -96,7 +97,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
 
     face_recognition_ = std::make_unique<FaceRecognition>(
       model_path,
-      this->get_parameter("match_threshold").as_double());
+      this->get_parameter("match_distance_threshold").as_double());
   } catch (dlib::serialization_error & e) {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Could not load the model: " << e.what());
     return LifecycleCallbackReturn::FAILURE;

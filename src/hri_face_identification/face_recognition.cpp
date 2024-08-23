@@ -54,14 +54,18 @@ Id generateId(const int len = 5)
   return tmp_s;
 }
 
-FaceRecognition::FaceRecognition(std::string model_path, float match_threshold)
-: match_threshold_(match_threshold)
+FaceRecognition::FaceRecognition(
+  std::string model_path,
+  float distance_threshold)
+: distance_threshold_(distance_threshold)
 {
   dlib::deserialize(model_path) >> net_;
 }
 
 std::map<Id, float> FaceRecognition::getAllMatches(
-  const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created)
+  const cv::Mat & cv_face,
+  bool create_person_if_needed,
+  bool & new_person_created)
 {
   new_person_created = false;
 
@@ -151,11 +155,11 @@ std::map<Id, float> FaceRecognition::findCandidates(Features descriptor)
 {
   std::map<Id, float> scores;
 
-  for (const auto & [person_id, known_descriptors] : person_descriptors_) {
+  for (const auto &[person_id, known_descriptors] : person_descriptors_) {
     for (const auto & known_descriptor : known_descriptors) {
       auto distance = dlib::length(descriptor - known_descriptor);
 
-      if (distance < match_threshold_) {
+      if (distance < distance_threshold_) {
         auto score = computeConfidence(distance);
 
         if (scores.count(person_id) == 0 || scores[person_id] < score) {
@@ -167,6 +171,11 @@ std::map<Id, float> FaceRecognition::findCandidates(Features descriptor)
   }
 
   return scores;
+}
+
+float FaceRecognition::computeConfidence(float distance)
+{
+  return 1 - distance / distance_threshold_;
 }
 
 FaceRecognitionDiagnostics FaceRecognition::getDiagnostics()

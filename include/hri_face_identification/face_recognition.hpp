@@ -185,11 +185,17 @@ public:
   void dropFaceDB();
 
 private:
-  float computeConfidence(float distance) {return 1 - distance / match_threshold_;}
+  /** Compute the confidence level for a given distance in embedding space.
+   *
+   * The confidence level is a value between 0.0 and 1.0, where 1.0 means
+   * fully confident about the identification, and 0.0 means not confident at
+   * all.
+   */
+  float computeConfidence(float distance);
 
   anet_type net_;
   std::map<hri::ID, std::vector<Features>> person_descriptors_;
-  float match_threshold_;
+  float distance_threshold_;
 };
 
 }  // namespace hri_face_identification

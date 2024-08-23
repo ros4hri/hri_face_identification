@@ -19,7 +19,7 @@ All parameters are loaded in the lifecycle `configuration` transition.
 
 - `model_path` (default: `<pkg share>/dlib_face_recognition_resnet_model_v1.dat`):
   Absolute path to the trained dlib resnet face identification model to be loaded.
-- `match_threshold` (default: `0.5`):
+- `match_distance_threshold` (default: `0.5`):
   Distance threshold (in the face embedding space) to consider two faces to belong to the same person.
 - `additional_face_database_paths` (default: `""`):
   A list of full paths to the face databases where known faces will be loaded from,
