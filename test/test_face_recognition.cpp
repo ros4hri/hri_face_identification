@@ -50,7 +50,7 @@ protected:
     }
 
     face_recognition_ = std::make_unique<hri_face_identification::FaceRecognition>(
-      (share_path / "model" / "dlib_face_recognition_resnet_model_v1.dat").string(), 0.5);
+      (share_path / "model" / "dlib_face_recognition_resnet_model_v1.dat").string(), 0.55);
   }
 
   void SetUp() override
