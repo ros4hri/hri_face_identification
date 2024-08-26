@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <fstream>
 #include <map>
 #include <random>
@@ -199,9 +200,20 @@ std::map<Id, float> FaceRecognition::findCandidates(Features descriptor)
   return scores;
 }
 
+/** Converts a distance in embedding space to a confidence level between 0 and 1.
+ * The confidence level is computed as a polynomial of degree 4, with the
+ * following properties:
+ * - confidence = 1 at distance = 0
+ * - confidence = 0 at distance >= match_distance_threshold
+ *   (ie, the confidence is 0 when the distance is equal to the threshold)
+ */
 float FaceRecognition::computeConfidence(float distance)
 {
-  return 1 - distance / distance_threshold_;
+  if (distance > distance_threshold_) {
+    return 0;
+  }
+
+  return 1.f - pow(distance / distance_threshold_, 4);
 }
 
 FaceRecognitionDiagnostics FaceRecognition::getDiagnostics()
