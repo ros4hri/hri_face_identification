@@ -82,6 +82,10 @@ using anet_type = dlib::loss_metric<dlib::fc_no_bias<
 //////////////////////////////////////////////////////////////////////////////////
 /* *INDENT-ON* : re-enable uncrustify */
 
+// Maximum number of face descriptors to store for a given person.
+// If a person has more than MAX_FACE_DESCRIPTORS, the oldest one is removed.
+static const unsigned int MAX_FACE_DESCRIPTORS = 32;
+
 struct FaceRecognitionDiagnostics
 {
   int known_faces{0};
@@ -192,6 +196,19 @@ private:
    * all.
    */
   float computeConfidence(float distance);
+
+  /** Removes the worst descriptor from the provided list of descriptors.
+   *
+   * The worst descriptor is the one that is the farthest from the centroid
+   * of all descriptors.
+   *
+   * If the number of descriptors is above MAX_FACE_DESCRIPTORS,
+   * the function modifies the input list of descriptors.
+   *
+   * If the number of descriptors is already below MAX_FACE_DESCRIPTORS,
+   * this function does nothing.
+   */
+  void pruneDescriptors(std::vector<Features> descriptors);
 
   anet_type net_;
   std::map<hri::ID, std::vector<Features>> person_descriptors_;

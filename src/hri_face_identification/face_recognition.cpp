@@ -98,12 +98,14 @@ std::map<Id, float> FaceRecognition::getAllMatches(
     }
   } else {
     if (candidates.size() == 1) {
-      auto & [id, confidence] = *candidates.begin();
+      auto &[id, confidence] = *candidates.begin();
       // we've got a match!
-      // compute & add new face descriptor for that person if too far from the original one,
-      // but not too bad either (to avoid adding too many false positive)
+      // compute & add new face descriptor for that person if too far from the
+      // original one, but not too bad either (to avoid adding too many false
+      // positive)
       if (confidence < 0.6 && confidence > 0.4) {
         person_descriptors_[id].push_back(computeFaceDescriptor(face));
+        pruneDescriptors(person_descriptors_[id]);
       }
     }
 
@@ -149,6 +151,30 @@ std::vector<DLibImage> FaceRecognition::jitterImage(const DLibImage & img)
   }
 
   return crops;
+}
+
+/** compute the centroid of all the descriptors of a person,
+ * then iterate over all the descriptors and remove the one
+ * that is the farthest from the centroid.
+ */
+void FaceRecognition::pruneDescriptors(std::vector<Features> descriptors)
+{
+  if (descriptors.size() < MAX_FACE_DESCRIPTORS) {
+    return;
+  }
+
+  // compute the centroid
+  Features centroid = dlib::mean(dlib::mat(descriptors));
+
+  // find the descriptor that is the farthest from the centroid
+  auto worst_descriptor = std::max_element(
+    descriptors.begin(), descriptors.end(),
+    [&centroid](const Features & l, const Features & r) -> bool {
+      return dlib::length(l - centroid) < dlib::length(r - centroid);
+    });
+
+  // remove it
+  descriptors.erase(worst_descriptor);
 }
 
 std::map<Id, float> FaceRecognition::findCandidates(Features descriptor)
