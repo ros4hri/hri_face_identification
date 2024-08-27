@@ -2,6 +2,14 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* slightly increase the match distance threshold for the unittest, otherwise person_2/1651761696953440300.jpg is not recognised at all
+* use a polynomial of deg 4 to convert distance into confidence
+* limit nb of descriptors per person by discarding outliers
+* rename param match_threshold to match_distance_threshold
+* Contributors: Séverin Lemaignan
+
 2.2.1 (2024-08-19)
 ------------------
 * rename diagnostics msg to match documentation (and diagnostic_aggregator) categories
