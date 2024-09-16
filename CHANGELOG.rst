@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.3.1 (2024-09-16)
+------------------
 * make PAL-only dep pal_module_cmake optional
 * Contributors: Séverin Lemaignan
 
