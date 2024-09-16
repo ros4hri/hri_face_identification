@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* make PAL-only dep pal_module_cmake optional
+* Contributors: Séverin Lemaignan
+
 2.3.0 (2024-08-27)
 ------------------
 * slightly increase the match distance threshold for the unittest, otherwise person_2/1651761696953440300.jpg is not recognised at all
