@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* rename {->hri\_}privacy_msgs
+* Contributors: Séverin Lemaignan
+
 2.3.1 (2024-09-16)
 ------------------
 * make PAL-only dep pal_module_cmake optional
