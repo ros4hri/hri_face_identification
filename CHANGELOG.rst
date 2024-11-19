@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.4.0 (2024-11-19)
+------------------
 * rename {->hri\_}privacy_msgs
 * Contributors: Séverin Lemaignan
 
