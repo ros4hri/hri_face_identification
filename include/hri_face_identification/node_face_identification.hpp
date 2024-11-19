@@ -25,7 +25,7 @@
 #include "hri/hri.hpp"
 #include "hri/types.hpp"
 #include "hri_msgs/msg/ids_match.hpp"
-#include "privacy_msgs/msg/personal_data_processor.hpp"
+#include "hri_privacy_msgs/msg/personal_data_processor.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 
@@ -63,7 +63,7 @@ private:
   double processing_rate_;
   rclcpp::Publisher<hri_msgs::msg::IdsMatch>::SharedPtr candidate_matches_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
-  rclcpp::Publisher<privacy_msgs::msg::PersonalDataProcessor>::SharedPtr privacy_pub_;
+  rclcpp::Publisher<hri_privacy_msgs::msg::PersonalDataProcessor>::SharedPtr privacy_pub_;
   std::shared_ptr<rclcpp::TimerBase> diagnostics_timer_;
   std::shared_ptr<rclcpp::TimerBase> process_images_timer_;
   std::map<Id, hri::FacePtr> tracked_faces_;

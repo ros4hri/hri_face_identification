@@ -38,7 +38,7 @@
   <depend>hri_msgs</depend>
   <depend>libdlib-dev</depend>
   <depend>libopencv-dev</depend>
-  <depend>privacy_msgs</depend>
+  <depend>hri_privacy_msgs</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
 
