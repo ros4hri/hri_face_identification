@@ -304,8 +304,9 @@ void NodeFaceIdentification::processFaces()
       if (!face_persons_map_[face_id].empty()) {
         RCLCPP_INFO(
           this->get_logger(),
-          fmt::format("Person '{}' not tracked anymore",
-          face_persons_map_[face_id].front().first).c_str());
+          fmt::format(
+            "Person '{}' not tracked anymore",
+            face_persons_map_[face_id].front().first).c_str());
       }
     }
   }
