@@ -2,6 +2,14 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* by default reidentify tracked faces, at lower rate
+* use single pal launch file with args
+* fix face databases handling
+* improve logging and diagnostics
+* Contributors: Luka Juricic
+
 2.4.0 (2024-11-19)
 ------------------
 * rename {->hri\_}privacy_msgs
