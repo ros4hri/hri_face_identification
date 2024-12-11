@@ -81,7 +81,7 @@ For an example of usage, execute in different terminals:
   2. `ros2 launch hri_face_detect face_detect.launch.py`
 - HRI face identification:
   1. `apt install ros-humble-hri-face-identification`
-  2. `ros2 launch hri_face_identification face_identification.launch.py`
+  2. `ros2 launch hri_face_identification hri_face_identification.launch.py`
 - RViz with HRI plugin:
   1. `apt install ros-humble-rviz2`
   1. `apt install ros-humble-hri-rviz`
