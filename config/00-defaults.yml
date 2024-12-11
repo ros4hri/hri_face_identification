@@ -5,5 +5,5 @@
     additional_face_database_paths: [""]
     persistent_face_database_path: /tmp/faces_db.json
     can_learn_new_faces: True
-    identify_all_faces: False
-    processing_rate: 10.0
+    identify_all_faces: True
+    processing_rate: 2.0

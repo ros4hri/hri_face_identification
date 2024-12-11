@@ -31,12 +31,12 @@ All parameters are loaded in the lifecycle `configuration` transition.
 - `can_learn_new_faces` (default: `true`):
   Whether or not unknown faces will be added to the database.
   If set to false, only *previously identified* faces are recognised (and the face database will not be modified).
-- `identify_all_faces` (default: `false`):
+- `identify_all_faces` (default: `true`):
   Whether or not already-tracked faces are re-identified.
   If false, face identification is only performed when face id changes,
   i.e. a currently-tracked face will not be re-identified every frame.
   If true, all received faces (on `/humans/faces/<id>/aligned`) will run through face identification at every frame.
-- `processing_rate` (double, default: 10.0):
+- `processing_rate` (double, default: 2.0):
   Best effort rate for processing input images in milliseconds.
 
 ### Topics
