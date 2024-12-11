@@ -1,9 +1,9 @@
 /hri_face_identification:
   ros__parameters:
-    model_path: ""
+    model_path: "model/dlib_face_recognition_resnet_model_v1.dat"
     match_distance_threshold: 0.5
     additional_face_database_paths: [""]
-    persistent_face_database_path: /tmp/faces_db
+    persistent_face_database_path: /tmp/faces_db.json
     can_learn_new_faces: True
     identify_all_faces: False
     processing_rate: 10.0

@@ -17,14 +17,14 @@ It expects instead faces to be detected and published under `/humans/faces/...`
 
 All parameters are loaded in the lifecycle `configuration` transition.
 
-- `model_path` (default: `<pkg share>/dlib_face_recognition_resnet_model_v1.dat`):
-  Absolute path to the trained dlib resnet face identification model to be loaded.
+- `model_path` (default: `model/dlib_face_recognition_resnet_model_v1.dat`):
+  Path, absolute or relative to pkg share, to the trained dlib resnet face identification model to be loaded.
 - `match_distance_threshold` (default: `0.5`):
   Distance threshold (in the face embedding space) to consider two faces to belong to the same person.
 - `additional_face_database_paths` (default: `""`):
   A list of full paths to the face databases where known faces will be loaded from,
   in addition to the ones found under the [face_databases resource](#resources) and the `persistent_face_database_path`.
-- `persistent_face_database_path` (default: `/tmp/faces_db`):
+- `persistent_face_database_path` (default: `/tmp/faces_db.json`):
   Path where the collection of all known faces, including the ones discovered online, is stored at node shutdown.
   It gets loaded at startup in addition to the [face_databases resource](#resources) and the `additional_face_database_paths`.
   If empty, no database is saved and the online discovered faces are lost.

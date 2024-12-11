@@ -55,6 +55,7 @@ private:
   void publishDiagnostics();
   void processFaces();
 
+  rclcpp::OnShutdownCallbackHandle on_shutdown_cb_handle_;
   std::unique_ptr<FaceRecognition> face_recognition_;
   std::shared_ptr<hri::HRIListener> hri_listener_;
   std::string persistent_face_database_path_;

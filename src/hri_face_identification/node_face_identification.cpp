@@ -49,7 +49,8 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   auto descriptor = rcl_interfaces::msg::ParameterDescriptor{};
 
   descriptor.description = "Absolute path to the face identification model";
-  this->declare_parameter("model_path", "", descriptor);
+  this->declare_parameter(
+    "model_path", "model/dlib_face_recognition_resnet_model_v1.dat", descriptor);
 
   descriptor.description =
     "Recognition threshold (max Euclidian distance between faces in embedding space)";
@@ -68,21 +69,25 @@ NodeFaceIdentification::NodeFaceIdentification(const rclcpp::NodeOptions & optio
   descriptor.description =
     "Whether or not faces that are already tracked are re-identified at every frame "
     "(more accurate, but slower)";
-  this->declare_parameter("identify_all_faces", false, descriptor);
+  this->declare_parameter("identify_all_faces", true, descriptor);
 
   descriptor.description = "Best-effort face identification rate (Hz)";
-  this->declare_parameter("processing_rate", 10., descriptor);
+  this->declare_parameter("processing_rate", 2., descriptor);
+
+  on_shutdown_cb_handle_ = this->get_node_options().context()->add_on_shutdown_callback(
+    [this]() {this->on_shutdown(this->get_current_state());});
 
   RCLCPP_INFO(this->get_logger(), "State: Unconfigured");
 }
 
 NodeFaceIdentification::~NodeFaceIdentification()
 {
-  on_shutdown(this->get_current_state());
+  this->get_node_options().context()->remove_on_shutdown_callback(on_shutdown_cb_handle_);
 }
 
 LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecycle::State &)
 {
+  auto model_path = this->get_parameter("model_path").as_string();
   auto additional_face_database_paths =
     this->get_parameter("additional_face_database_paths").as_string_array();
   persistent_face_database_path_ = this->get_parameter("persistent_face_database_path").as_string();
@@ -90,15 +95,14 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
   identify_all_faces_ = this->get_parameter("identify_all_faces").as_bool();
   processing_rate_ = this->get_parameter("processing_rate").as_double();
 
-  try {
-    auto model_path = this->get_parameter("model_path").as_string();
-    if (model_path.empty()) {
-      auto pkg_path = ament_index_cpp::get_package_share_directory("hri_face_identification");
-      model_path = pkg_path + "/model/dlib_face_recognition_resnet_model_v1.dat";
+  auto model_path_fs = std::filesystem::path(model_path);
+  if (model_path_fs.is_relative()) {
+    model_path_fs = std::filesystem::path(
+      ament_index_cpp::get_package_share_directory("hri_face_identification")) / model_path;
   }
-
+  try {
     face_recognition_ = std::make_unique<FaceRecognition>(
-      model_path,
+      model_path_fs,
       this->get_parameter("match_distance_threshold").as_double());
   } catch (dlib::serialization_error & e) {
     RCLCPP_ERROR_STREAM(this->get_logger(), "Could not load the model: " << e.what());
@@ -113,8 +117,8 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
     while (!stream_db_files.eof()) {
       std::string db_file_name;
       std::getline(stream_db_files, db_file_name);
-      auto db_path =
-        std::filesystem::path(ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
+      auto db_path = std::filesystem::path(
+        ament_index_cpp::get_package_share_directory(pkg)) / db_file_name;
       face_database_paths.push_back(db_path.string());
     }
   }
