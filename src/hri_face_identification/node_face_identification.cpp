@@ -29,6 +29,8 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_updater/diagnostic_status_wrapper.hpp"
 #include "dlib/serialize.h"
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 #include "hri/face.hpp"
 #include "hri/hri.hpp"
 #include "hri_msgs/msg/ids_match.hpp"
@@ -93,7 +95,7 @@ LifecycleCallbackReturn NodeFaceIdentification::on_configure(const rclcpp_lifecy
     if (model_path.empty()) {
       auto pkg_path = ament_index_cpp::get_package_share_directory("hri_face_identification");
       model_path = pkg_path + "/model/dlib_face_recognition_resnet_model_v1.dat";
-    }
+  }
 
     face_recognition_ = std::make_unique<FaceRecognition>(
       model_path,
@@ -226,38 +228,43 @@ void NodeFaceIdentification::internal_cleanup()
 
 void NodeFaceIdentification::processFaces()
 {
+  std::vector<Id> current_persons;
   std::vector<Id> faces_to_remove;
 
   for (const auto & [face_id, face] : tracked_faces_) {
     if (auto face_aligned = face->aligned()) {
       RCLCPP_DEBUG_STREAM(this->get_logger(), "Got face " << face_id);
-      std::map<Id, float> results;
 
       if (identify_all_faces_ || !face_persons_map_.count(face_id)) {
-        RCLCPP_INFO(this->get_logger(), "Trying to identify the face...");
+        RCLCPP_DEBUG(this->get_logger(), "Trying to identify the face...");
         // note that this might return more than one match!
         // each match has an associated confidence level
         bool new_person_created;
-        results = face_recognition_->getAllMatches(
+        auto results = face_recognition_->getAllMatches(
           *face_aligned, can_learn_new_faces_, new_person_created);
 
         if (!results.empty()) {
           face_persons_map_[face_id] = results;
 
           if (new_person_created) {
-            RCLCPP_INFO_STREAM(
+            RCLCPP_INFO(
               this->get_logger(),
-              "New person detected; will be identified as <" << results.begin()->first << ">");
-          } else if (results.size() == 1U) {
-            RCLCPP_INFO_STREAM(
-              this->get_logger(),
-              "Found a match with person " << results.begin()->first << " (confidence: " <<
-                results.begin()->second);
+              fmt::format(
+                "New person detected; will be identified as '{}'", results.front().first).c_str());
           } else {
-            RCLCPP_INFO(this->get_logger(), "Found more than one possible match:");
-            for (const auto & result : results) {
-              RCLCPP_INFO_STREAM(
-                this->get_logger(), "  - " << result.first << " (c=" << result.second << ")");
+            RCLCPP_INFO(
+              this->get_logger(),
+              fmt::format(
+                "Found a match with person '{}' (confidence: {})",
+                results.front().first,
+                results.front().second).c_str());
+
+            if (results.size() > 1) {
+              RCLCPP_DEBUG(
+                this->get_logger(),
+                fmt::format(
+                  "Found more than one possible match:\n{}",
+                  fmt::join(face_persons_map_, "\n")).c_str());
             }
           }
         }
@@ -280,10 +287,6 @@ void NodeFaceIdentification::processFaces()
       // for all the person id previously associated to this face,
       // publish a 'match' with confidence = 0 to dis-associate them.
       for (const auto & [person_id, confidence] : face_persons_map_[face_id]) {
-        RCLCPP_INFO_STREAM(
-          this->get_logger(),
-          "Face " << face_id << " not tracked anymore. Dis-associating from person " << person_id);
-
         hri_msgs::msg::IdsMatch match;
         match.id1 = person_id;
         match.id1_type = hri_msgs::msg::IdsMatch::PERSON;
@@ -292,6 +295,13 @@ void NodeFaceIdentification::processFaces()
         match.id2_type = hri_msgs::msg::IdsMatch::FACE;
 
         candidate_matches_pub_->publish(match);
+      }
+
+      if (!face_persons_map_[face_id].empty()) {
+        RCLCPP_INFO(
+          this->get_logger(),
+          fmt::format("Person '{}' not tracked anymore",
+          face_persons_map_[face_id].front().first).c_str());
       }
     }
   }
@@ -314,11 +324,18 @@ void NodeFaceIdentification::publishDiagnostics()
     std::ostream_iterator<std::string>(ss, "\n"));
   status.add("Face database paths", ss.str());
   status.add("Persistency face database path", persistent_face_database_path_);
-  status.add("Currently detected faces", tracked_faces_.size());
+
+  std::vector<std::string> current_persons;
+  for (const auto & [face_id, face] : tracked_faces_) {
+    if (face_persons_map_.count(face_id)) {
+      current_persons.push_back(face_persons_map_[face_id].begin()->first);
+    }
+  }
+  status.add("Currently detected persons", fmt::format("{}", fmt::join(current_persons, ", ")));
 
   auto face_recognition_diagnostics = face_recognition_->getDiagnostics();
-  status.add("Known faces", face_recognition_diagnostics.known_faces);
-  status.add("Last recognized face ID", face_recognition_diagnostics.last_face_id);
+  status.add("Known persons", face_recognition_diagnostics.known_persons);
+  status.add("Last person added to the database", face_recognition_diagnostics.last_person_id);
 
   diagnostic_msgs::msg::DiagnosticArray msg;
   msg.header.stamp = this->get_clock()->now();

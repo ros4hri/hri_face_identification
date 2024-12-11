@@ -88,8 +88,8 @@ static const unsigned int MAX_FACE_DESCRIPTORS = 32;
 
 struct FaceRecognitionDiagnostics
 {
-  int known_faces{0};
-  std::string last_face_id{""};
+  int known_persons{0};
+  std::string last_person_id{""};
 };
 
 class FaceRecognition
@@ -99,8 +99,8 @@ public:
 
   /** Tries to match a given face image to the known faces.
    *
-   * Returns a map {person_id, confidence} with all possible matches (ie,
-   * face who are below the match threshold).
+   * Returns a vector of {person_id, confidence} with all possible matches (ie,
+   * face who are below the match threshold), in order of confidence.
    *
    * Note that the match threshold is the maximum *distance* in the face
    * embedding space, while the returned *confidence* is a value between 1.0
@@ -111,20 +111,7 @@ public:
    * generated for the face, if the face does not match any known one,
    * and `new_person_created` is set to true.
    */
-  std::map<Id, float> getAllMatches(
-    const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created);
-
-  /** Returns the best match between the provided face image and the know faces,
-   * with the associated confidence level (between 0.0 and 1.0).
-   *
-   * Effectively runs `processFace` and returns the candidate with the highest
-   * confidence.
-   *
-   * If `create_person_if_needed` is true, a new person ID is
-   * generated for the face, if the face does not match any known one,
-   * and `new_person_created` is set to true.
-   */
-  std::pair<Id, float> getBestMatch(
+  std::vector<std::pair<Id, float>> getAllMatches(
     const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created);
 
   /** Compute a face descriptor by projecting a face on the dlib's trained

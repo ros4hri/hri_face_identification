@@ -63,7 +63,7 @@ FaceRecognition::FaceRecognition(
   dlib::deserialize(model_path) >> net_;
 }
 
-std::map<Id, float> FaceRecognition::getAllMatches(
+std::vector<std::pair<Id, float>> FaceRecognition::getAllMatches(
   const cv::Mat & cv_face,
   bool create_person_if_needed,
   bool & new_person_created)
@@ -110,26 +110,17 @@ std::map<Id, float> FaceRecognition::getAllMatches(
       }
     }
 
-    return candidates;
+    std::map<float, Id> ascending_candidates;
+    for (const auto & [id, confidence] : candidates) {
+      ascending_candidates[confidence] = id;
+    }
+    std::vector<std::pair<Id, float>> results;
+    for (auto it = ascending_candidates.rbegin(); it != ascending_candidates.rend(); ++it) {
+      results.emplace_back(it->second, it->first);
+    }
+
+    return results;
   }
-}
-
-std::pair<Id, float> FaceRecognition::getBestMatch(
-  const cv::Mat & cv_face, bool create_person_if_needed, bool & new_person_created)
-{
-  auto candidates = getAllMatches(cv_face, create_person_if_needed, new_person_created);
-
-  if (candidates.empty()) {
-    return std::make_pair(Id(), 0.0);
-  }
-
-  auto best = std::max_element(
-    candidates.begin(), candidates.end(),
-    [](decltype(candidates)::value_type & l, decltype(candidates)::value_type & r) -> bool {
-      return l.second < r.second;
-    });
-
-  return std::make_pair(best->first, best->second);
 }
 
 Features FaceRecognition::computeFaceDescriptor(const DLibImage & face)
@@ -220,8 +211,8 @@ FaceRecognitionDiagnostics FaceRecognition::getDiagnostics()
 {
   FaceRecognitionDiagnostics diagnostics{};
   if (!person_descriptors_.empty()) {
-    diagnostics.known_faces = static_cast<int>(person_descriptors_.size());
-    diagnostics.last_face_id = person_descriptors_.rbegin()->first;
+    diagnostics.known_persons = static_cast<int>(person_descriptors_.size());
+    diagnostics.last_person_id = person_descriptors_.rbegin()->first;
   }
   return diagnostics;
 }

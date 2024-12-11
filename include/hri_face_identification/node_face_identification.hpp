@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
@@ -68,8 +69,8 @@ private:
   std::shared_ptr<rclcpp::TimerBase> process_images_timer_;
   std::map<Id, hri::FacePtr> tracked_faces_;
   // mapping between a face_id and all the possible recognised person_id
-  // (with their confidence level) for that face.
-  std::map<Id, std::map<Id, float>> face_persons_map_;
+  // (with their confidence level) for that face, ordered by confidence level
+  std::map<Id, std::vector<std::pair<Id, float>>> face_persons_map_;
 };
 
 }  // namespace hri_face_identification

@@ -99,8 +99,8 @@ protected:
             break;
           }
         }
-        auto [id, confidence] = face_recognition_->getBestMatch(
-          cv_face, should_create_person, new_person_created);
+        auto [id, confidence] = face_recognition_->getAllMatches(
+          cv_face, should_create_person, new_person_created).front();
 
         if (should_create_person) {
           if (new_person_created) {
