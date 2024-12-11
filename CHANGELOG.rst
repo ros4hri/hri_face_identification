@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.5.0 (2024-12-11)
+------------------
 * by default reidentify tracked faces, at lower rate
 * use single pal launch file with args
 * fix face databases handling
