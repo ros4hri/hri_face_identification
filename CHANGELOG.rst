@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.5.1 (2024-12-13)
+------------------
 * fix module launch file name
 * Contributors: Luka Juricic
 
