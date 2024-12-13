@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix module launch file name
+* Contributors: Luka Juricic
+
 2.5.0 (2024-12-11)
 ------------------
 * by default reidentify tracked faces, at lower rate
