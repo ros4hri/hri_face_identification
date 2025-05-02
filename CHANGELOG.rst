@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* shutdown the whole launch file on crash
+* Contributors: Séverin Lemaignan
+
 2.5.1 (2024-12-13)
 ------------------
 * fix module launch file name
