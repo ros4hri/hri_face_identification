@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.5.2 (2025-05-02)
+------------------
 * shutdown the whole launch file on crash
 * Contributors: Séverin Lemaignan
 
