@@ -21,7 +21,6 @@
   <build_depend>nlohmann-json-dev</build_depend>
   <build_depend condition="$PAL_DISTRO != ''">pal_module_cmake</build_depend>
 
-  <exec_depend>ament_index_cpp</exec_depend>
   <exec_depend>diagnostic_aggregator</exec_depend>
   <exec_depend>diagnostic_updater</exec_depend>
   <exec_depend>fmt</exec_depend>
@@ -34,6 +33,7 @@
   <exec_depend>lifecycle_msgs</exec_depend>
   <exec_depend>nlohmann-json-dev</exec_depend>
 
+  <depend>ament_index_cpp</depend>
   <depend>diagnostic_msgs</depend>
   <depend>hri</depend>
   <depend>hri_msgs</depend>
