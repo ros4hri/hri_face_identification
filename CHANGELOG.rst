@@ -2,6 +2,11 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* ament_index_cpp is also a build dependency
+* Contributors: Séverin Lemaignan
+
 2.6.0 (2025-09-10)
 ------------------
 * ament_auto_package now requires USE_SCOPED_HEADER_INSTALL_DIR
