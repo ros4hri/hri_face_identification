@@ -2,8 +2,8 @@
 Changelog for package hri_face_identification
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+2.7.0 (2026-02-03)
+------------------
 * ament_index_cpp is also a build dependency
 * Contributors: Séverin Lemaignan
 
